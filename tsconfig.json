@@ -1,0 +1,3 @@
+{
+  "extends": "@quadratic/config/tsconfig.base.json"
+}
