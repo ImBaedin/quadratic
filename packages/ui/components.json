@@ -10,7 +10,7 @@
     "cssVariables": true,
     "prefix": ""
   },
-  "iconLibrary": "lucide",
+  "iconLibrary": "phosphor",
   "aliases": {
     "components": "@quadratic/ui/components",
     "utils": "@quadratic/ui/lib/utils",
@@ -18,7 +18,8 @@
     "lib": "@quadratic/ui/lib",
     "ui": "@quadratic/ui/components"
   },
-  "menuColor": "default",
+  "menuColor": "default-translucent",
   "menuAccent": "subtle",
-  "registries": {}
+  "registries": {},
+  "rtl": false
 }
