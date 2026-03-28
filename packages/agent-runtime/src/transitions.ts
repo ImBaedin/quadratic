@@ -1,13 +1,13 @@
 import type { RunStatus } from "./events";
 
 const allowedTransitions = {
-  queued: ["preparing", "running", "canceling", "canceled", "failed"],
-  preparing: ["running", "canceling", "canceled", "failed", "timed_out"],
-  running: ["canceling", "completed", "failed", "timed_out"],
-  canceling: ["canceled", "failed", "timed_out"],
-  completed: [],
+  queued: ["requested", "launching", "running", "cancelled", "failed", "timed_out"],
+  requested: ["launching", "running", "cancelled", "failed", "timed_out"],
+  launching: ["running", "cancelled", "failed", "timed_out"],
+  running: ["succeeded", "failed", "cancelled", "timed_out"],
+  succeeded: [],
   failed: [],
-  canceled: [],
+  cancelled: [],
   timed_out: [],
 } satisfies Record<RunStatus, RunStatus[]>;
 

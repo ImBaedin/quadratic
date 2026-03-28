@@ -126,13 +126,40 @@ export async function requestAgentRun(args: {
   return await getConvexClient().mutation(api.agentRuns.request, args as never);
 }
 
-export async function reportAgentRun(args: {
-  runId: string;
-  status: string;
-  externalJobId?: string;
-  summary?: string;
-  error?: string;
-  events?: { type: string; payload: Record<string, unknown> }[];
+export async function createTask(args: {
+  workosUserId: string;
+  workspaceId: string;
+  repositoryId: string;
+  branch: string;
+  prompt: string;
+  title?: string;
 }) {
-  return await getConvexClient().mutation(api.agentRuns.reportResult, args as never);
+  return await getConvexClient().mutation(api.tasks.create, args as never);
+}
+
+export async function requestTaskPlanning(args: {
+  workosUserId: string;
+  taskId: string;
+}) {
+  return await getConvexClient().mutation(api.tasks.requestPlanning, args as never);
+}
+
+export async function getTask(args: { workosUserId: string; taskId: string }) {
+  return await getConvexClient().query(api.tasks.get, args as never);
+}
+
+export async function listTasks(args: { workosUserId: string; workspaceId: string }) {
+  return await getConvexClient().query(api.tasks.listForWorkspace, args as never);
+}
+
+export async function answerTaskQuestion(args: {
+  workosUserId: string;
+  questionId: string;
+  answer: string;
+}) {
+  return await getConvexClient().mutation(api.tasks.answerQuestion, args as never);
+}
+
+export async function dismissTaskQuestion(args: { workosUserId: string; questionId: string }) {
+  return await getConvexClient().mutation(api.tasks.dismissQuestion, args as never);
 }

@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 
-import { mutation, query, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { requireWorkspaceMembership } from "./lib/auth";
 
 const runStatusArg = v.union(
@@ -137,7 +138,12 @@ export const request = mutation({
       workosUserId: args.workosUserId,
     });
 
-    return await ctx.db.insert("agentRuns", {
+    const repository = await ctx.db.get(args.repositoryId);
+    if (!repository || repository.workspaceId !== args.workspaceId) {
+      throw new ConvexError("Repository not found");
+    }
+
+    const runId = await ctx.db.insert("agentRuns", {
       workspaceId: args.workspaceId,
       repositoryId: args.repositoryId,
       branch: args.branch,
@@ -145,6 +151,69 @@ export const request = mutation({
       status: "requested",
       requestedByUserId: user._id,
     });
+
+    await ctx.scheduler.runAfter(0, internal.orchestration.dispatchAgentRun, {
+      runId,
+    });
+
+    return runId;
+  },
+});
+
+export const getDispatchContext = internalQuery({
+  args: {
+    runId: v.id("agentRuns"),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      runId: v.id("agentRuns"),
+      workspaceId: v.id("workspaces"),
+      repositoryId: v.id("repositories"),
+      branch: v.string(),
+      kind: v.string(),
+      status: v.string(),
+      repository: v.object({
+        repositoryId: v.id("repositories"),
+        fullName: v.string(),
+        owner: v.string(),
+        name: v.string(),
+        defaultBranch: v.string(),
+        selected: v.boolean(),
+        archived: v.boolean(),
+        githubInstallationId: v.number(),
+      }),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const run = await ctx.db.get(args.runId);
+    if (!run) {
+      return null;
+    }
+
+    const repository = await ctx.db.get(run.repositoryId);
+    if (!repository || repository.workspaceId !== run.workspaceId) {
+      throw new ConvexError("Repository not found");
+    }
+
+    return {
+      runId: run._id,
+      workspaceId: run.workspaceId,
+      repositoryId: run.repositoryId,
+      branch: run.branch,
+      kind: run.kind,
+      status: run.status,
+      repository: {
+        repositoryId: repository._id,
+        fullName: repository.fullName,
+        owner: repository.owner,
+        name: repository.name,
+        defaultBranch: repository.defaultBranch,
+        selected: repository.selected,
+        archived: repository.archived,
+        githubInstallationId: repository.githubInstallationId,
+      },
+    };
   },
 });
 

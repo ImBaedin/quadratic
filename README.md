@@ -4,11 +4,11 @@ Quadratic is scaffolded as a workspace-first product shell:
 
 - `apps/web`: TanStack Start app deployed to Cloudflare via Alchemy
 - `packages/backend/convex`: system of record, reactive queries, role checks, repo/run state
-- `packages/agent-runtime`: shared Fly/Inngest/job contracts
+- `packages/agent-runtime`: shared external worker request/result contracts
 - `packages/github`: GitHub App auth, webhook verification, metadata normalization
 - `packages/workos`: WorkOS normalization helpers and legacy auth utilities
-- Fly.io: ephemeral repository execution only
-- Inngest: durable orchestration between web/Convex and Fly jobs
+- Fly.io: external repository action service
+- Convex: durable orchestration and system of record
 - WorkOS: sign-in, organization identity, memberships, invitations
 
 ## Getting Started
@@ -38,9 +38,9 @@ The scaffold expects separate dev and prod values for:
 - `GITHUB_APP_WEBHOOK_SECRET`
 - `GITHUB_APP_NAME`
 - `GITHUB_APP_INSTALL_URL`
-- `INNGEST_APP_ID`
-- `INNGEST_BASE_URL`
-- `INNGEST_EVENT_KEY`
+- `REPO_ACTIONS_BASE_URL`
+- `REPO_ACTIONS_TOKEN`
+- `SERVICE_TOKEN` for `apps/repo-actions`
 
 The web app now uses WorkOS AuthKit for TanStack Start directly. Configure `WORKOS_REDIRECT_URI` to
 match `/api/auth/callback` in the web app and set the same callback in the WorkOS dashboard.
@@ -104,11 +104,9 @@ Use separate Convex cloud deployments for dev and prod.
 
 ### Fly
 
-Provision a dedicated worker app for ephemeral repository jobs. Workers should receive a signed callback token and report structured run results back through `/api/inngest`.
-
-### Inngest
-
-Host the event ingress from the web app for now. The current scaffold posts events to `INNGEST_BASE_URL` when configured and no-ops otherwise.
+Deploy `apps/repo-actions` to Fly as the external repository action service. Convex scheduled actions
+call this service directly and apply the returned result back into Convex state. Set `SERVICE_TOKEN`
+on the Fly app and the same value as `REPO_ACTIONS_TOKEN` in Convex.
 
 ## Git Hooks and Formatting
 
@@ -119,9 +117,10 @@ Host the event ingress from the web app for now. The current scaffold posts even
 ```
 quadratic/
 ├── apps/
+│   ├── repo-actions/         # Fly-deployed repository action service
 │   ├── web/                  # Cloudflare-hosted TanStack Start app
 ├── packages/
-│   ├── agent-runtime/        # Shared job, event, and worker contracts
+│   ├── agent-runtime/        # Shared request/result and runtime contracts
 │   ├── backend/              # Convex backend functions and schema
 │   ├── github/               # GitHub App helpers
 │   ├── ui/                   # Shared shadcn/ui components and styles

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@quadratic/agent-runtime": "workspace:*",
+    "@quadratic/github": "workspace:*",
     "convex": "catalog:",
     "dotenv": "catalog:",
     "zod": "catalog:"

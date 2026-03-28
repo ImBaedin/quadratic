@@ -17,7 +17,9 @@ import type * as invites from "../invites.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_roles from "../lib/roles.js";
 import type * as memberships from "../memberships.js";
+import type * as orchestration from "../orchestration.js";
 import type * as repositories from "../repositories.js";
+import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
 import type * as workspaces from "../workspaces.js";
 
@@ -37,7 +39,9 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/roles": typeof lib_roles;
   memberships: typeof memberships;
+  orchestration: typeof orchestration;
   repositories: typeof repositories;
+  tasks: typeof tasks;
   users: typeof users;
   workspaces: typeof workspaces;
 }>;

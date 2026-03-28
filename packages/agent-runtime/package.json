@@ -7,6 +7,8 @@
     ".": "./src/index.ts",
     "./events": "./src/events.ts",
     "./provider": "./src/provider.ts",
+    "./repository": "./src/repository.ts",
+    "./runtime": "./src/runtime.ts",
     "./transitions": "./src/transitions.ts"
   },
   "scripts": {
@@ -14,6 +16,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@tanstack/ai": "^0.9.1",
     "zod": "catalog:"
   },
   "devDependencies": {

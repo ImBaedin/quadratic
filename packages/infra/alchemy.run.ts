@@ -26,9 +26,6 @@ export const web = await TanStackStart("web", {
     GITHUB_APP_WEBHOOK_SECRET: alchemy.env.GITHUB_APP_WEBHOOK_SECRET!,
     GITHUB_APP_NAME: alchemy.env.GITHUB_APP_NAME!,
     GITHUB_APP_INSTALL_URL: alchemy.env.GITHUB_APP_INSTALL_URL!,
-    INNGEST_APP_ID: alchemy.env.INNGEST_APP_ID!,
-    INNGEST_BASE_URL: alchemy.env.INNGEST_BASE_URL!,
-    INNGEST_EVENT_KEY: alchemy.env.INNGEST_EVENT_KEY!,
   },
 });
 

@@ -15,10 +15,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkspaceSlugIndexRouteImport } from './routes/$workspaceSlug/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
-import { Route as ApiInngestRouteImport } from './routes/api/inngest'
 import { Route as WorkspaceSlugSettingsIndexRouteImport } from './routes/$workspaceSlug/settings/index'
 import { Route as ApiPlatformWorkspacesRouteImport } from './routes/api/platform/workspaces'
 import { Route as ApiPlatformWorkspaceRouteImport } from './routes/api/platform/workspace'
+import { Route as ApiPlatformTasksRouteImport } from './routes/api/platform/tasks'
 import { Route as ApiPlatformSessionRouteImport } from './routes/api/platform/session'
 import { Route as ApiPlatformRunsRouteImport } from './routes/api/platform/runs'
 import { Route as ApiPlatformInvitesRouteImport } from './routes/api/platform/invites'
@@ -61,11 +61,6 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiInngestRoute = ApiInngestRouteImport.update({
-  id: '/api/inngest',
-  path: '/api/inngest',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WorkspaceSlugSettingsIndexRoute =
   WorkspaceSlugSettingsIndexRouteImport.update({
     id: '/$workspaceSlug/settings/',
@@ -80,6 +75,11 @@ const ApiPlatformWorkspacesRoute = ApiPlatformWorkspacesRouteImport.update({
 const ApiPlatformWorkspaceRoute = ApiPlatformWorkspaceRouteImport.update({
   id: '/api/platform/workspace',
   path: '/api/platform/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPlatformTasksRoute = ApiPlatformTasksRouteImport.update({
+  id: '/api/platform/tasks',
+  path: '/api/platform/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPlatformSessionRoute = ApiPlatformSessionRouteImport.update({
@@ -149,7 +149,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
-  '/api/inngest': typeof ApiInngestRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/$workspaceSlug/': typeof WorkspaceSlugIndexRoute
   '/$workspaceSlug/settings/github': typeof WorkspaceSlugSettingsGithubRoute
@@ -160,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/api/platform/invites': typeof ApiPlatformInvitesRoute
   '/api/platform/runs': typeof ApiPlatformRunsRoute
   '/api/platform/session': typeof ApiPlatformSessionRoute
+  '/api/platform/tasks': typeof ApiPlatformTasksRoute
   '/api/platform/workspace': typeof ApiPlatformWorkspaceRoute
   '/api/platform/workspaces': typeof ApiPlatformWorkspacesRoute
   '/$workspaceSlug/settings/': typeof WorkspaceSlugSettingsIndexRoute
@@ -172,7 +172,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
-  '/api/inngest': typeof ApiInngestRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/$workspaceSlug': typeof WorkspaceSlugIndexRoute
   '/$workspaceSlug/settings/github': typeof WorkspaceSlugSettingsGithubRoute
@@ -183,6 +182,7 @@ export interface FileRoutesByTo {
   '/api/platform/invites': typeof ApiPlatformInvitesRoute
   '/api/platform/runs': typeof ApiPlatformRunsRoute
   '/api/platform/session': typeof ApiPlatformSessionRoute
+  '/api/platform/tasks': typeof ApiPlatformTasksRoute
   '/api/platform/workspace': typeof ApiPlatformWorkspaceRoute
   '/api/platform/workspaces': typeof ApiPlatformWorkspacesRoute
   '/$workspaceSlug/settings': typeof WorkspaceSlugSettingsIndexRoute
@@ -196,7 +196,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
-  '/api/inngest': typeof ApiInngestRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/$workspaceSlug/': typeof WorkspaceSlugIndexRoute
   '/$workspaceSlug/settings/github': typeof WorkspaceSlugSettingsGithubRoute
@@ -207,6 +206,7 @@ export interface FileRoutesById {
   '/api/platform/invites': typeof ApiPlatformInvitesRoute
   '/api/platform/runs': typeof ApiPlatformRunsRoute
   '/api/platform/session': typeof ApiPlatformSessionRoute
+  '/api/platform/tasks': typeof ApiPlatformTasksRoute
   '/api/platform/workspace': typeof ApiPlatformWorkspaceRoute
   '/api/platform/workspaces': typeof ApiPlatformWorkspacesRoute
   '/$workspaceSlug/settings/': typeof WorkspaceSlugSettingsIndexRoute
@@ -221,7 +221,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/onboarding'
-    | '/api/inngest'
     | '/auth/callback'
     | '/$workspaceSlug/'
     | '/$workspaceSlug/settings/github'
@@ -232,6 +231,7 @@ export interface FileRouteTypes {
     | '/api/platform/invites'
     | '/api/platform/runs'
     | '/api/platform/session'
+    | '/api/platform/tasks'
     | '/api/platform/workspace'
     | '/api/platform/workspaces'
     | '/$workspaceSlug/settings/'
@@ -244,7 +244,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/onboarding'
-    | '/api/inngest'
     | '/auth/callback'
     | '/$workspaceSlug'
     | '/$workspaceSlug/settings/github'
@@ -255,6 +254,7 @@ export interface FileRouteTypes {
     | '/api/platform/invites'
     | '/api/platform/runs'
     | '/api/platform/session'
+    | '/api/platform/tasks'
     | '/api/platform/workspace'
     | '/api/platform/workspaces'
     | '/$workspaceSlug/settings'
@@ -267,7 +267,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/onboarding'
-    | '/api/inngest'
     | '/auth/callback'
     | '/$workspaceSlug/'
     | '/$workspaceSlug/settings/github'
@@ -278,6 +277,7 @@ export interface FileRouteTypes {
     | '/api/platform/invites'
     | '/api/platform/runs'
     | '/api/platform/session'
+    | '/api/platform/tasks'
     | '/api/platform/workspace'
     | '/api/platform/workspaces'
     | '/$workspaceSlug/settings/'
@@ -291,7 +291,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
   OnboardingRoute: typeof OnboardingRoute
-  ApiInngestRoute: typeof ApiInngestRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   WorkspaceSlugIndexRoute: typeof WorkspaceSlugIndexRoute
   WorkspaceSlugSettingsGithubRoute: typeof WorkspaceSlugSettingsGithubRoute
@@ -302,6 +301,7 @@ export interface RootRouteChildren {
   ApiPlatformInvitesRoute: typeof ApiPlatformInvitesRoute
   ApiPlatformRunsRoute: typeof ApiPlatformRunsRoute
   ApiPlatformSessionRoute: typeof ApiPlatformSessionRoute
+  ApiPlatformTasksRoute: typeof ApiPlatformTasksRoute
   ApiPlatformWorkspaceRoute: typeof ApiPlatformWorkspaceRoute
   ApiPlatformWorkspacesRoute: typeof ApiPlatformWorkspacesRoute
   WorkspaceSlugSettingsIndexRoute: typeof WorkspaceSlugSettingsIndexRoute
@@ -353,13 +353,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/inngest': {
-      id: '/api/inngest'
-      path: '/api/inngest'
-      fullPath: '/api/inngest'
-      preLoaderRoute: typeof ApiInngestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/$workspaceSlug/settings/': {
       id: '/$workspaceSlug/settings/'
       path: '/$workspaceSlug/settings'
@@ -379,6 +372,13 @@ declare module '@tanstack/react-router' {
       path: '/api/platform/workspace'
       fullPath: '/api/platform/workspace'
       preLoaderRoute: typeof ApiPlatformWorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/platform/tasks': {
+      id: '/api/platform/tasks'
+      path: '/api/platform/tasks'
+      fullPath: '/api/platform/tasks'
+      preLoaderRoute: typeof ApiPlatformTasksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/platform/session': {
@@ -477,7 +477,6 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
   OnboardingRoute: OnboardingRoute,
-  ApiInngestRoute: ApiInngestRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   WorkspaceSlugIndexRoute: WorkspaceSlugIndexRoute,
   WorkspaceSlugSettingsGithubRoute: WorkspaceSlugSettingsGithubRoute,
@@ -489,6 +488,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPlatformInvitesRoute: ApiPlatformInvitesRoute,
   ApiPlatformRunsRoute: ApiPlatformRunsRoute,
   ApiPlatformSessionRoute: ApiPlatformSessionRoute,
+  ApiPlatformTasksRoute: ApiPlatformTasksRoute,
   ApiPlatformWorkspaceRoute: ApiPlatformWorkspaceRoute,
   ApiPlatformWorkspacesRoute: ApiPlatformWorkspacesRoute,
   WorkspaceSlugSettingsIndexRoute: WorkspaceSlugSettingsIndexRoute,

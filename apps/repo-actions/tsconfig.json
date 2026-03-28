@@ -1,0 +1,12 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "lib": ["ESNext", "DOM"],
+    "types": ["node"],
+    "paths": {
+      "@quadratic/agent-runtime": ["../../packages/agent-runtime/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

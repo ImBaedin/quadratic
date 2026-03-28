@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { connectGitHubInstallation, ensureUserSynced } from "../../../../lib/server/platform";
 import { decodeGitHubInstallState, fetchInstallationRepositories } from "../../../../lib/server/github";
 import { refreshRepositories } from "../../../../lib/server/convex";
-import { sendInngestEvent } from "../../../../lib/server/inngest";
 
 export const Route = createFileRoute("/api/github/install/callback" as never)({
   server: {
@@ -11,7 +10,6 @@ export const Route = createFileRoute("/api/github/install/callback" as never)({
       GET: async ({ request }: { request: Request }) => {
     const url = new URL(request.url);
     const installationIdRaw = url.searchParams.get("installation_id");
-    const setupAction = url.searchParams.get("setup_action");
     const state = decodeGitHubInstallState(url.searchParams.get("state"));
 
     if (!installationIdRaw || !state) {
@@ -46,16 +44,6 @@ export const Route = createFileRoute("/api/github/install/callback" as never)({
         })),
       });
 
-      await sendInngestEvent({
-        name: "github.installation.connected",
-        data: {
-          workspaceId: state.workspaceId,
-          userId: session.userId,
-          githubInstallationId: String(installationId),
-          payload: { setupAction },
-          source: "github_install_callback",
-        },
-      });
     }
 
         return new Response(null, {

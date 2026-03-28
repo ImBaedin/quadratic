@@ -24,7 +24,6 @@
 		"@workos/authkit-tanstack-react-start": "^0.5.0",
 		"convex": "catalog:",
 		"dotenv": "catalog:",
-		"inngest": "catalog:",
 		"lucide-react": "catalog:",
 		"next-themes": "catalog:",
 		"react": "catalog:",

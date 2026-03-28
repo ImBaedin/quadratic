@@ -2,12 +2,12 @@ import { z } from "zod";
 
 export const runStatusSchema = z.enum([
   "queued",
-  "preparing",
+  "requested",
+  "launching",
   "running",
-  "canceling",
-  "completed",
+  "succeeded",
   "failed",
-  "canceled",
+  "cancelled",
   "timed_out",
 ]);
 
@@ -77,21 +77,6 @@ export const runEventSchema = z.object({
 
 export type RunEvent = z.infer<typeof runEventSchema>;
 
-export const workerCallbackAuthSchema = z.object({
-  kind: z.enum(["bearer", "hmac"]),
-  token: z.string(),
-  headerName: z.string().default("authorization"),
-});
-
-export type WorkerCallbackAuth = z.infer<typeof workerCallbackAuthSchema>;
-
-export const workerCallbackSchema = z.object({
-  url: z.string().url(),
-  auth: workerCallbackAuthSchema,
-});
-
-export type WorkerCallback = z.infer<typeof workerCallbackSchema>;
-
 export const repositoryExecutionRequestSchema = z.object({
   runId: z.string(),
   workspaceId: z.string(),
@@ -101,13 +86,26 @@ export const repositoryExecutionRequestSchema = z.object({
   branch: z.string(),
   kind: runKindSchema,
   requestedAt: z.string().datetime(),
-  callback: workerCallbackSchema,
   metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
 export type RepositoryExecutionRequest = z.infer<
   typeof repositoryExecutionRequestSchema
 >;
+
+export const taskPlanningRequestSchema = z.object({
+  taskId: z.string(),
+  runId: z.string(),
+  workspaceId: z.string(),
+  repositoryId: z.string(),
+  githubInstallationId: z.string(),
+  repositoryFullName: z.string(),
+  branch: z.string(),
+  requestedAt: z.string().datetime(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+
+export type TaskPlanningRequest = z.infer<typeof taskPlanningRequestSchema>;
 
 export const repositoryExecutionResultSchema = z.object({
   runId: z.string(),
@@ -123,28 +121,56 @@ export type RepositoryExecutionResult = z.infer<
   typeof repositoryExecutionResultSchema
 >;
 
-export const inngestEventNameSchema = z.enum([
-  "workspace.created",
-  "github.installation.connected",
-  "github.installation.repositories_changed",
-  "repository.selected",
-  "repository.push_detected",
-  "agent.run.requested",
-]);
-
-export type InngestEventName = z.infer<typeof inngestEventNameSchema>;
-
-export const inngestEventSchema = z.object({
-  name: inngestEventNameSchema,
-  data: z.object({
-    workspaceId: z.string(),
-    userId: z.string().optional(),
-    repositoryId: z.string().optional(),
-    runId: z.string().optional(),
-    githubInstallationId: z.string().optional(),
-    source: z.string().optional(),
-    payload: z.record(z.string(), z.unknown()).default({}),
-  }),
+export const taskPlanningDraftSchema = z.object({
+  title: z.string().min(1),
+  normalizedPrompt: z.string().min(1),
+  plan: z.string().min(1),
+  acceptanceCriteria: z.array(z.string().min(1)).min(1),
+  suggestedFiles: z.array(
+    z.object({
+      path: z.string().min(1),
+      reason: z.string().min(1).optional(),
+    }),
+  ),
 });
 
-export type InngestEvent = z.infer<typeof inngestEventSchema>;
+export type TaskPlanningDraft = z.infer<typeof taskPlanningDraftSchema>;
+
+export const taskPlanningQuestionSchema = z.object({
+  key: z.string().min(1),
+  question: z.string().min(1),
+});
+
+export type TaskPlanningQuestion = z.infer<typeof taskPlanningQuestionSchema>;
+
+export const taskPlanningEventSchema = z.object({
+  type: z.string().min(1),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+export type TaskPlanningEvent = z.infer<typeof taskPlanningEventSchema>;
+
+export const taskPlanningResultSchema = z
+  .object({
+    taskId: z.string(),
+    runId: z.string(),
+    status: runStatusSchema,
+    startedAt: z.string().datetime().optional(),
+    completedAt: z.string().datetime().optional(),
+    draft: taskPlanningDraftSchema.optional(),
+    questions: z.array(taskPlanningQuestionSchema).optional(),
+    summary: z.string().optional(),
+    error: z.string().optional(),
+    events: z.array(taskPlanningEventSchema).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "succeeded" && !value.draft) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Successful task planning results must include a draft.",
+        path: ["draft"],
+      });
+    }
+  });
+
+export type TaskPlanningResult = z.infer<typeof taskPlanningResultSchema>;

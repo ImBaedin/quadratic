@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { getWorkspace, setRepositorySelected } from "../../../../lib/server/convex";
 import { ensureUserSynced } from "../../../../lib/server/platform";
-import { sendInngestEvent } from "../../../../lib/server/inngest";
 
 export const Route = createFileRoute("/api/platform/repositories/selection" as never)({
   server: {
@@ -35,16 +34,6 @@ export const Route = createFileRoute("/api/platform/repositories/selection" as n
       workosUserId: session.userId,
       repositoryId,
       selected: selected === "true",
-    });
-
-    await sendInngestEvent({
-      name: "repository.selected",
-      data: {
-        workspaceId: workspace.workspaceId,
-        repositoryId,
-        userId: session.userId,
-        source: "web",
-      },
     });
 
         return new Response(null, {

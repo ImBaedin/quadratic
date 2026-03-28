@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { getWorkspace, requestAgentRun } from "../../../lib/server/convex";
 import { ensureUserSynced } from "../../../lib/server/platform";
-import { sendInngestEvent } from "../../../lib/server/inngest";
 
 export const Route = createFileRoute("/api/platform/runs" as never)({
   server: {
@@ -33,24 +32,12 @@ export const Route = createFileRoute("/api/platform/runs" as never)({
       return new Response("Workspace not found", { status: 404 });
     }
 
-    const runId = await requestAgentRun({
+    await requestAgentRun({
       workosUserId: session.userId,
       workspaceId: workspace.workspaceId,
       repositoryId,
       branch,
       kind,
-    });
-
-    await sendInngestEvent({
-      name: "agent.run.requested",
-      data: {
-        workspaceId: workspace.workspaceId,
-        repositoryId,
-        runId,
-        userId: session.userId,
-        payload: { branch, kind },
-        source: "web",
-      },
     });
 
         return new Response(null, {

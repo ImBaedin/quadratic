@@ -25,6 +25,32 @@ const runStatusValidator = v.union(
   v.literal("cancelled"),
   v.literal("timed_out"),
 );
+const taskStatusValidator = v.union(
+  v.literal("drafting"),
+  v.literal("awaiting_clarification"),
+  v.literal("ready"),
+  v.literal("executing"),
+  v.literal("completed"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+const taskPhaseValidator = v.union(
+  v.literal("intake"),
+  v.literal("planning"),
+  v.literal("clarification"),
+  v.literal("execution"),
+  v.literal("delivery"),
+);
+const taskQuestionStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("answered"),
+  v.literal("dismissed"),
+);
+const taskRunKindValidator = v.union(
+  v.literal("planning"),
+  v.literal("clarification"),
+  v.literal("execution"),
+);
 
 export default defineSchema({
   users: defineTable({
@@ -113,6 +139,73 @@ export default defineSchema({
     .index("by_repository", ["repositoryId"]),
   agentRunEvents: defineTable({
     runId: v.id("agentRuns"),
+    timestamp: v.number(),
+    type: v.string(),
+    payload: v.any(),
+  }).index("by_run", ["runId"]),
+  tasks: defineTable({
+    workspaceId: v.id("workspaces"),
+    repositoryId: v.id("repositories"),
+    branch: v.string(),
+    title: v.string(),
+    rawPrompt: v.string(),
+    normalizedPrompt: v.optional(v.string()),
+    status: taskStatusValidator,
+    phase: taskPhaseValidator,
+    createdByUserId: v.id("users"),
+    plan: v.optional(v.string()),
+    acceptanceCriteria: v.optional(v.array(v.string())),
+    suggestedFiles: v.optional(
+      v.array(
+        v.object({
+          path: v.string(),
+          reason: v.optional(v.string()),
+        }),
+      ),
+    ),
+    latestSummary: v.optional(v.string()),
+    latestError: v.optional(v.string()),
+    activeRunId: v.optional(v.id("taskRuns")),
+    planningRunId: v.optional(v.id("taskRuns")),
+    executionRunId: v.optional(v.id("taskRuns")),
+    readyForExecutionAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    cancelledAt: v.optional(v.number()),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_and_status", ["workspaceId", "status"])
+    .index("by_repository", ["repositoryId"]),
+  taskQuestions: defineTable({
+    taskId: v.id("tasks"),
+    key: v.string(),
+    question: v.string(),
+    status: taskQuestionStatusValidator,
+    answer: v.optional(v.string()),
+    answeredAt: v.optional(v.number()),
+  })
+    .index("by_task", ["taskId"])
+    .index("by_task_and_status", ["taskId", "status"]),
+  taskRuns: defineTable({
+    taskId: v.id("tasks"),
+    workspaceId: v.id("workspaces"),
+    repositoryId: v.id("repositories"),
+    branch: v.string(),
+    kind: taskRunKindValidator,
+    status: runStatusValidator,
+    requestedByUserId: v.id("users"),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    externalJobId: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    model: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    error: v.optional(v.string()),
+  })
+    .index("by_task", ["taskId"])
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_and_status", ["workspaceId", "status"]),
+  taskRunEvents: defineTable({
+    runId: v.id("taskRuns"),
     timestamp: v.number(),
     type: v.string(),
     payload: v.any(),
