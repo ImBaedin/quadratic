@@ -5,12 +5,7 @@ import { basename, join, relative } from "node:path";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 
-import {
-  repositoryExecutionRequestSchema,
-  repositoryExecutionResultSchema,
-  taskPlanningRequestSchema,
-  taskPlanningResultSchema,
-} from "@quadratic/agent-runtime";
+import { z } from "zod";
 
 const port = Number(process.env.PORT ?? "8080");
 const serviceToken = process.env.SERVICE_TOKEN;
@@ -29,6 +24,108 @@ const ignoredDirectories = new Set([
   ".turbo",
   ".cache",
 ]);
+
+const runStatusSchema = z.enum([
+  "queued",
+  "requested",
+  "launching",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "timed_out",
+]);
+
+const runKindSchema = z.enum(["repository_sync", "repository_explore", "agent_tool"]);
+
+const runArtifactSchema = z.object({
+  kind: z.string(),
+  key: z.string(),
+  label: z.string().optional(),
+  contentType: z.string().optional(),
+  url: z.string().url().optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
+});
+
+const repositoryExecutionRequestSchema = z.object({
+  runId: z.string(),
+  workspaceId: z.string(),
+  repositoryId: z.string(),
+  githubInstallationId: z.string(),
+  repositoryFullName: z.string(),
+  branch: z.string(),
+  kind: runKindSchema,
+  requestedAt: z.string().datetime(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+
+const repositoryExecutionResultSchema = z.object({
+  runId: z.string(),
+  status: runStatusSchema,
+  startedAt: z.string().datetime().optional(),
+  completedAt: z.string().datetime().optional(),
+  summary: z.string().optional(),
+  error: z.string().optional(),
+  artifacts: z.array(runArtifactSchema).default([]),
+});
+
+const taskPlanningDraftSchema = z.object({
+  title: z.string().min(1),
+  normalizedPrompt: z.string().min(1),
+  plan: z.string().min(1),
+  acceptanceCriteria: z.array(z.string().min(1)).min(1),
+  suggestedFiles: z.array(
+    z.object({
+      path: z.string().min(1),
+      reason: z.string().min(1).optional(),
+    }),
+  ),
+});
+
+const taskPlanningQuestionSchema = z.object({
+  key: z.string().min(1),
+  question: z.string().min(1),
+});
+
+const taskPlanningEventSchema = z.object({
+  type: z.string().min(1),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+const taskPlanningRequestSchema = z.object({
+  taskId: z.string(),
+  runId: z.string(),
+  workspaceId: z.string(),
+  repositoryId: z.string(),
+  githubInstallationId: z.string(),
+  repositoryFullName: z.string(),
+  branch: z.string(),
+  requestedAt: z.string().datetime(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+
+const taskPlanningResultSchema = z
+  .object({
+    taskId: z.string(),
+    runId: z.string(),
+    status: runStatusSchema,
+    startedAt: z.string().datetime().optional(),
+    completedAt: z.string().datetime().optional(),
+    draft: taskPlanningDraftSchema.optional(),
+    questions: z.array(taskPlanningQuestionSchema).optional(),
+    summary: z.string().optional(),
+    error: z.string().optional(),
+    events: z.array(taskPlanningEventSchema).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === "succeeded" && !value.draft) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Successful task planning results must include a draft.",
+        path: ["draft"],
+      });
+    }
+  });
 
 type RepoMetadata = {
   installationToken: string;

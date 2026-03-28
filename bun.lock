@@ -22,11 +22,9 @@
     "apps/repo-actions": {
       "name": "repo-actions",
       "dependencies": {
-        "@quadratic/agent-runtime": "workspace:*",
-        "zod": "catalog:",
+        "zod": "^4.1.13",
       },
       "devDependencies": {
-        "@quadratic/config": "workspace:*",
         "@types/bun": "^1.3.2",
         "@types/node": "^24.3.0",
         "typescript": "^5",

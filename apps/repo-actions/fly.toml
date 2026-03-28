@@ -1,8 +1,8 @@
-app = "quadratic-repo-actions"
+app = "quadratic"
 primary_region = "ord"
 
 [build]
-  dockerfile = "apps/repo-actions/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   PORT = "8080"
