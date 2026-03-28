@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { WorkspaceShell } from "../../../components/workspace/shell";
+import { WorkspaceLayout } from "../../../components/workspace-layout";
 import { useJson } from "../../../components/workspace/use-json";
+import { Button } from "@quadratic/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@quadratic/ui/components/card";
 
 export const Route = createFileRoute("/$workspaceSlug/settings/github" as never)({
   component: WorkspaceGitHubPage,
@@ -11,38 +13,71 @@ function WorkspaceGitHubPage() {
   const { workspaceSlug } = Route.useParams();
   const workspace = useJson<{
     workspace: { name: string; workspaceId: string };
-    installations: { installationId: string; githubInstallationId: number; githubAccountLogin: string; status: string }[];
+    installations: {
+      installationId: string;
+      githubInstallationId: number;
+      githubAccountLogin: string;
+      status: string;
+    }[];
   }>(`/api/platform/workspace?slug=${workspaceSlug}`);
 
   return (
-    <WorkspaceShell workspaceSlug={workspaceSlug} title={workspace.data?.workspace.name ?? workspaceSlug} eyebrow="GitHub App">
-      <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <div className="rounded-[1.5rem] border border-zinc-800 bg-zinc-950 p-6">
-          <h2 className="text-xl font-medium text-white">Install the GitHub App</h2>
-          <p className="mt-3 text-sm text-zinc-400">
-            The installation callback links the GitHub installation to this workspace, and the webhook route
-            updates metadata or enqueues runs without doing heavy work inline.
-          </p>
-          <a
-            href={`/api/github/install?workspaceSlug=${workspaceSlug}`}
-            className="mt-6 inline-flex rounded-full bg-sky-400 px-5 py-3 text-sm font-medium text-zinc-950"
-          >
-            Open GitHub installation flow
-          </a>
-        </div>
-        <div className="rounded-[1.5rem] border border-zinc-800 bg-zinc-950 p-6">
-          <h2 className="text-xl font-medium text-white">Linked installations</h2>
-          <div className="mt-4 grid gap-3">
-            {(workspace.data?.installations ?? []).map((installation) => (
-              <div key={installation.installationId} className="rounded-2xl border border-zinc-800 px-4 py-3 text-sm text-zinc-200">
-                {installation.githubAccountLogin}
-                <span className="ml-2 text-zinc-500">#{installation.githubInstallationId}</span>
-                <span className="ml-2 text-zinc-500">{installation.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    </WorkspaceShell>
+    <WorkspaceLayout
+      workspaceSlug={workspaceSlug}
+      workspaceName={workspace.data?.workspace.name}
+      breadcrumbs={[
+        { label: workspaceSlug },
+        { label: "Settings", href: `/${workspaceSlug}/settings` },
+        { label: "GitHub" },
+      ]}
+    >
+      <div>
+        <h1 className="font-heading text-lg font-semibold">GitHub App</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Connect your GitHub account to enable repository access.
+        </p>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Install the GitHub App</CardTitle>
+            <CardDescription>
+              The installation callback links the GitHub installation to this workspace, and the
+              webhook route updates metadata or enqueues runs without doing heavy work inline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button size="sm" render={<a href={`/api/github/install?workspaceSlug=${workspaceSlug}`} />}>
+              Open GitHub installation flow
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Linked installations</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {(workspace.data?.installations ?? []).length === 0 ? (
+              <p className="text-xs text-muted-foreground">No installations linked yet.</p>
+            ) : (
+              (workspace.data?.installations ?? []).map((installation) => (
+                <div
+                  key={installation.installationId}
+                  className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-xs"
+                >
+                  <span className="font-medium text-foreground">{installation.githubAccountLogin}</span>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span>#{installation.githubInstallationId}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5">{installation.status}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </WorkspaceLayout>
   );
 }

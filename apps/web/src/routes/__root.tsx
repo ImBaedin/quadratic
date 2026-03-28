@@ -6,8 +6,6 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { AuthKitProvider } from "@workos/authkit-tanstack-react-start/client";
 import { ConvexProvider } from "convex/react";
 
-import Header from "../components/header";
-
 import appCss from "../index.css?url";
 
 export interface RouterAppContext {
@@ -50,8 +48,7 @@ function RootDocument() {
             <HeadContent />
           </head>
           <body>
-            <div className="grid min-h-svh grid-rows-[auto_1fr] bg-black text-white">
-              <Header />
+            <div className="min-h-dvh bg-background text-foreground">
               <Outlet />
             </div>
             <Toaster richColors />

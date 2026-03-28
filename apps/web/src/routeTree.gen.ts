@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkspaceSlugIndexRouteImport } from './routes/$workspaceSlug/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as WorkspaceSlugTasksIndexRouteImport } from './routes/$workspaceSlug/tasks/index'
 import { Route as WorkspaceSlugSettingsIndexRouteImport } from './routes/$workspaceSlug/settings/index'
 import { Route as ApiPlatformWorkspacesRouteImport } from './routes/api/platform/workspaces'
 import { Route as ApiPlatformWorkspaceRouteImport } from './routes/api/platform/workspace'
@@ -24,6 +25,7 @@ import { Route as ApiPlatformRunsRouteImport } from './routes/api/platform/runs'
 import { Route as ApiPlatformInvitesRouteImport } from './routes/api/platform/invites'
 import { Route as ApiGithubWebhookRouteImport } from './routes/api/github/webhook'
 import { Route as ApiGithubInstallRouteImport } from './routes/api/github/install'
+import { Route as WorkspaceSlugTasksTaskIdRouteImport } from './routes/$workspaceSlug/tasks/$taskId'
 import { Route as WorkspaceSlugSettingsRepositoriesRouteImport } from './routes/$workspaceSlug/settings/repositories'
 import { Route as WorkspaceSlugSettingsMembersRouteImport } from './routes/$workspaceSlug/settings/members'
 import { Route as WorkspaceSlugSettingsGithubRouteImport } from './routes/$workspaceSlug/settings/github'
@@ -59,6 +61,11 @@ const WorkspaceSlugIndexRoute = WorkspaceSlugIndexRouteImport.update({
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceSlugTasksIndexRoute = WorkspaceSlugTasksIndexRouteImport.update({
+  id: '/$workspaceSlug/tasks/',
+  path: '/$workspaceSlug/tasks/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WorkspaceSlugSettingsIndexRoute =
@@ -107,6 +114,12 @@ const ApiGithubInstallRoute = ApiGithubInstallRouteImport.update({
   path: '/api/github/install',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkspaceSlugTasksTaskIdRoute =
+  WorkspaceSlugTasksTaskIdRouteImport.update({
+    id: '/$workspaceSlug/tasks/$taskId',
+    path: '/$workspaceSlug/tasks/$taskId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const WorkspaceSlugSettingsRepositoriesRoute =
   WorkspaceSlugSettingsRepositoriesRouteImport.update({
     id: '/$workspaceSlug/settings/repositories',
@@ -154,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/$workspaceSlug/settings/github': typeof WorkspaceSlugSettingsGithubRoute
   '/$workspaceSlug/settings/members': typeof WorkspaceSlugSettingsMembersRoute
   '/$workspaceSlug/settings/repositories': typeof WorkspaceSlugSettingsRepositoriesRoute
+  '/$workspaceSlug/tasks/$taskId': typeof WorkspaceSlugTasksTaskIdRoute
   '/api/github/install': typeof ApiGithubInstallRouteWithChildren
   '/api/github/webhook': typeof ApiGithubWebhookRoute
   '/api/platform/invites': typeof ApiPlatformInvitesRoute
@@ -163,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/api/platform/workspace': typeof ApiPlatformWorkspaceRoute
   '/api/platform/workspaces': typeof ApiPlatformWorkspacesRoute
   '/$workspaceSlug/settings/': typeof WorkspaceSlugSettingsIndexRoute
+  '/$workspaceSlug/tasks/': typeof WorkspaceSlugTasksIndexRoute
   '/api/github/install/callback': typeof ApiGithubInstallCallbackRoute
   '/api/platform/repositories/branch': typeof ApiPlatformRepositoriesBranchRoute
   '/api/platform/repositories/selection': typeof ApiPlatformRepositoriesSelectionRoute
@@ -177,6 +192,7 @@ export interface FileRoutesByTo {
   '/$workspaceSlug/settings/github': typeof WorkspaceSlugSettingsGithubRoute
   '/$workspaceSlug/settings/members': typeof WorkspaceSlugSettingsMembersRoute
   '/$workspaceSlug/settings/repositories': typeof WorkspaceSlugSettingsRepositoriesRoute
+  '/$workspaceSlug/tasks/$taskId': typeof WorkspaceSlugTasksTaskIdRoute
   '/api/github/install': typeof ApiGithubInstallRouteWithChildren
   '/api/github/webhook': typeof ApiGithubWebhookRoute
   '/api/platform/invites': typeof ApiPlatformInvitesRoute
@@ -186,6 +202,7 @@ export interface FileRoutesByTo {
   '/api/platform/workspace': typeof ApiPlatformWorkspaceRoute
   '/api/platform/workspaces': typeof ApiPlatformWorkspacesRoute
   '/$workspaceSlug/settings': typeof WorkspaceSlugSettingsIndexRoute
+  '/$workspaceSlug/tasks': typeof WorkspaceSlugTasksIndexRoute
   '/api/github/install/callback': typeof ApiGithubInstallCallbackRoute
   '/api/platform/repositories/branch': typeof ApiPlatformRepositoriesBranchRoute
   '/api/platform/repositories/selection': typeof ApiPlatformRepositoriesSelectionRoute
@@ -201,6 +218,7 @@ export interface FileRoutesById {
   '/$workspaceSlug/settings/github': typeof WorkspaceSlugSettingsGithubRoute
   '/$workspaceSlug/settings/members': typeof WorkspaceSlugSettingsMembersRoute
   '/$workspaceSlug/settings/repositories': typeof WorkspaceSlugSettingsRepositoriesRoute
+  '/$workspaceSlug/tasks/$taskId': typeof WorkspaceSlugTasksTaskIdRoute
   '/api/github/install': typeof ApiGithubInstallRouteWithChildren
   '/api/github/webhook': typeof ApiGithubWebhookRoute
   '/api/platform/invites': typeof ApiPlatformInvitesRoute
@@ -210,6 +228,7 @@ export interface FileRoutesById {
   '/api/platform/workspace': typeof ApiPlatformWorkspaceRoute
   '/api/platform/workspaces': typeof ApiPlatformWorkspacesRoute
   '/$workspaceSlug/settings/': typeof WorkspaceSlugSettingsIndexRoute
+  '/$workspaceSlug/tasks/': typeof WorkspaceSlugTasksIndexRoute
   '/api/github/install/callback': typeof ApiGithubInstallCallbackRoute
   '/api/platform/repositories/branch': typeof ApiPlatformRepositoriesBranchRoute
   '/api/platform/repositories/selection': typeof ApiPlatformRepositoriesSelectionRoute
@@ -226,6 +245,7 @@ export interface FileRouteTypes {
     | '/$workspaceSlug/settings/github'
     | '/$workspaceSlug/settings/members'
     | '/$workspaceSlug/settings/repositories'
+    | '/$workspaceSlug/tasks/$taskId'
     | '/api/github/install'
     | '/api/github/webhook'
     | '/api/platform/invites'
@@ -235,6 +255,7 @@ export interface FileRouteTypes {
     | '/api/platform/workspace'
     | '/api/platform/workspaces'
     | '/$workspaceSlug/settings/'
+    | '/$workspaceSlug/tasks/'
     | '/api/github/install/callback'
     | '/api/platform/repositories/branch'
     | '/api/platform/repositories/selection'
@@ -249,6 +270,7 @@ export interface FileRouteTypes {
     | '/$workspaceSlug/settings/github'
     | '/$workspaceSlug/settings/members'
     | '/$workspaceSlug/settings/repositories'
+    | '/$workspaceSlug/tasks/$taskId'
     | '/api/github/install'
     | '/api/github/webhook'
     | '/api/platform/invites'
@@ -258,6 +280,7 @@ export interface FileRouteTypes {
     | '/api/platform/workspace'
     | '/api/platform/workspaces'
     | '/$workspaceSlug/settings'
+    | '/$workspaceSlug/tasks'
     | '/api/github/install/callback'
     | '/api/platform/repositories/branch'
     | '/api/platform/repositories/selection'
@@ -272,6 +295,7 @@ export interface FileRouteTypes {
     | '/$workspaceSlug/settings/github'
     | '/$workspaceSlug/settings/members'
     | '/$workspaceSlug/settings/repositories'
+    | '/$workspaceSlug/tasks/$taskId'
     | '/api/github/install'
     | '/api/github/webhook'
     | '/api/platform/invites'
@@ -281,6 +305,7 @@ export interface FileRouteTypes {
     | '/api/platform/workspace'
     | '/api/platform/workspaces'
     | '/$workspaceSlug/settings/'
+    | '/$workspaceSlug/tasks/'
     | '/api/github/install/callback'
     | '/api/platform/repositories/branch'
     | '/api/platform/repositories/selection'
@@ -296,6 +321,7 @@ export interface RootRouteChildren {
   WorkspaceSlugSettingsGithubRoute: typeof WorkspaceSlugSettingsGithubRoute
   WorkspaceSlugSettingsMembersRoute: typeof WorkspaceSlugSettingsMembersRoute
   WorkspaceSlugSettingsRepositoriesRoute: typeof WorkspaceSlugSettingsRepositoriesRoute
+  WorkspaceSlugTasksTaskIdRoute: typeof WorkspaceSlugTasksTaskIdRoute
   ApiGithubInstallRoute: typeof ApiGithubInstallRouteWithChildren
   ApiGithubWebhookRoute: typeof ApiGithubWebhookRoute
   ApiPlatformInvitesRoute: typeof ApiPlatformInvitesRoute
@@ -305,6 +331,7 @@ export interface RootRouteChildren {
   ApiPlatformWorkspaceRoute: typeof ApiPlatformWorkspaceRoute
   ApiPlatformWorkspacesRoute: typeof ApiPlatformWorkspacesRoute
   WorkspaceSlugSettingsIndexRoute: typeof WorkspaceSlugSettingsIndexRoute
+  WorkspaceSlugTasksIndexRoute: typeof WorkspaceSlugTasksIndexRoute
   ApiPlatformRepositoriesBranchRoute: typeof ApiPlatformRepositoriesBranchRoute
   ApiPlatformRepositoriesSelectionRoute: typeof ApiPlatformRepositoriesSelectionRoute
 }
@@ -351,6 +378,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$workspaceSlug/tasks/': {
+      id: '/$workspaceSlug/tasks/'
+      path: '/$workspaceSlug/tasks'
+      fullPath: '/$workspaceSlug/tasks/'
+      preLoaderRoute: typeof WorkspaceSlugTasksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$workspaceSlug/settings/': {
@@ -414,6 +448,13 @@ declare module '@tanstack/react-router' {
       path: '/api/github/install'
       fullPath: '/api/github/install'
       preLoaderRoute: typeof ApiGithubInstallRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$workspaceSlug/tasks/$taskId': {
+      id: '/$workspaceSlug/tasks/$taskId'
+      path: '/$workspaceSlug/tasks/$taskId'
+      fullPath: '/$workspaceSlug/tasks/$taskId'
+      preLoaderRoute: typeof WorkspaceSlugTasksTaskIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$workspaceSlug/settings/repositories': {
@@ -483,6 +524,7 @@ const rootRouteChildren: RootRouteChildren = {
   WorkspaceSlugSettingsMembersRoute: WorkspaceSlugSettingsMembersRoute,
   WorkspaceSlugSettingsRepositoriesRoute:
     WorkspaceSlugSettingsRepositoriesRoute,
+  WorkspaceSlugTasksTaskIdRoute: WorkspaceSlugTasksTaskIdRoute,
   ApiGithubInstallRoute: ApiGithubInstallRouteWithChildren,
   ApiGithubWebhookRoute: ApiGithubWebhookRoute,
   ApiPlatformInvitesRoute: ApiPlatformInvitesRoute,
@@ -492,6 +534,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPlatformWorkspaceRoute: ApiPlatformWorkspaceRoute,
   ApiPlatformWorkspacesRoute: ApiPlatformWorkspacesRoute,
   WorkspaceSlugSettingsIndexRoute: WorkspaceSlugSettingsIndexRoute,
+  WorkspaceSlugTasksIndexRoute: WorkspaceSlugTasksIndexRoute,
   ApiPlatformRepositoriesBranchRoute: ApiPlatformRepositoriesBranchRoute,
   ApiPlatformRepositoriesSelectionRoute: ApiPlatformRepositoriesSelectionRoute,
 }

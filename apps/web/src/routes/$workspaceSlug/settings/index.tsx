@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { WorkspaceShell } from "../../../components/workspace/shell";
+import { WorkspaceLayout } from "../../../components/workspace-layout";
 import { useJson } from "../../../components/workspace/use-json";
 
 export const Route = createFileRoute("/$workspaceSlug/settings/" as never)({
@@ -13,32 +13,52 @@ function WorkspaceSettingsPage() {
     `/api/platform/workspace?slug=${workspaceSlug}`,
   );
 
+  const cards = [
+    {
+      title: "GitHub access",
+      body: "Install or reconnect the GitHub App, reconcile installation repository access, and keep webhook ingestion fast.",
+      href: `/${workspaceSlug}/settings/github`,
+    },
+    {
+      title: "Repository policy",
+      body: "Select connected repositories, set default branches, and trigger one-shot repo jobs.",
+      href: `/${workspaceSlug}/settings/repositories`,
+    },
+    {
+      title: "Members and invites",
+      body: "Owners and admins manage invitations while members retain read access to the workspace.",
+      href: `/${workspaceSlug}/settings/members`,
+    },
+  ];
+
   return (
-    <WorkspaceShell workspaceSlug={workspaceSlug} title={workspace.data?.workspace.name ?? workspaceSlug} eyebrow="Workspace settings">
-      <section className="grid gap-6 md:grid-cols-3">
-        {[
-          {
-            title: "GitHub access",
-            body: "Install or reconnect the GitHub App, reconcile installation repository access, and keep webhook ingestion fast.",
-            href: `/${workspaceSlug}/settings/github`,
-          },
-          {
-            title: "Repository policy",
-            body: "Select connected repositories, set default branches, and trigger one-shot repo jobs.",
-            href: `/${workspaceSlug}/settings/repositories`,
-          },
-          {
-            title: "Members and invites",
-            body: "Owners and admins manage invitations while members retain read access to the workspace shell.",
-            href: `/${workspaceSlug}/settings/members`,
-          },
-        ].map((item) => (
-          <a key={item.title} href={item.href} className="rounded-[1.5rem] border border-zinc-800 bg-zinc-950 p-6">
-            <h2 className="text-xl font-medium text-white">{item.title}</h2>
-            <p className="mt-3 text-sm text-zinc-400">{item.body}</p>
-          </a>
+    <WorkspaceLayout
+      workspaceSlug={workspaceSlug}
+      workspaceName={workspace.data?.workspace.name}
+      breadcrumbs={[
+        { label: workspaceSlug },
+        { label: "Settings" },
+      ]}
+    >
+      <div>
+        <h1 className="font-heading text-lg font-semibold">Settings</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Manage workspace configuration and integrations.
+        </p>
+      </div>
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((card) => (
+          <Link
+            key={card.title}
+            to={card.href}
+            className="group flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-5 text-xs transition-colors hover:border-border hover:bg-card/80"
+          >
+            <h2 className="font-medium text-foreground">{card.title}</h2>
+            <p className="text-muted-foreground text-pretty">{card.body}</p>
+          </Link>
         ))}
       </section>
-    </WorkspaceShell>
+    </WorkspaceLayout>
   );
 }

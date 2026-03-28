@@ -1,5 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getAuth, getSignInUrl, getSignUpUrl } from "@workos/authkit-tanstack-react-start";
+import { Button } from "@quadratic/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@quadratic/ui/components/card";
 
 export const Route = createFileRoute("/login" as never)({
   loader: async () => {
@@ -20,28 +22,29 @@ function LoginPage() {
   const { signInUrl, signUpUrl } = Route.useLoaderData();
 
   return (
-    <main className="mx-auto flex min-h-[calc(100svh-5rem)] max-w-3xl flex-col justify-center gap-6 px-4 py-16">
-      <div className="rounded-[2rem] border border-zinc-800 bg-zinc-950 p-10">
-        <div className="text-xs uppercase tracking-[0.35em] text-zinc-500">Authentication</div>
-        <h1 className="mt-4 text-4xl font-semibold text-white">Sign in to continue onboarding</h1>
-        <p className="mt-4 text-zinc-400">
-          WorkOS AuthKit owns the session lifecycle. Quadratic syncs the authenticated identity into
-          Convex after callback handling and then routes you into onboarding and workspace setup.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a
-            href={signInUrl}
-            className="inline-flex rounded-full bg-sky-400 px-5 py-3 text-sm font-medium text-zinc-950"
-          >
-            Sign In
-          </a>
-          <a
-            href={signUpUrl}
-            className="inline-flex rounded-full border border-zinc-700 px-5 py-3 text-sm font-medium text-zinc-100"
-          >
-            Create Account
-          </a>
+    <main className="flex min-h-dvh items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Quadratic
+          </span>
         </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Welcome back</CardTitle>
+            <CardDescription>
+              Sign in to your account or create a new one to get started.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2.5">
+            <Button render={<a href={signInUrl} />} className="w-full" size="sm">
+              Sign in
+            </Button>
+            <Button render={<a href={signUpUrl} />} variant="outline" className="w-full" size="sm">
+              Create account
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
