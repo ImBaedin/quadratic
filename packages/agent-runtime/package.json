@@ -1,0 +1,24 @@
+{
+  "name": "@quadratic/agent-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./events": "./src/events.ts",
+    "./provider": "./src/provider.ts",
+    "./transitions": "./src/transitions.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@quadratic/config": "workspace:*",
+    "typescript": "^5"
+  }
+}

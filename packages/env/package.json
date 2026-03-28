@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./server": "./src/server.ts",
     "./web": "./src/web.ts"
   },
   "dependencies": {
@@ -14,6 +15,7 @@
   "devDependencies": {
     "@quadratic/config": "workspace:*",
     "@quadratic/infra": "workspace:*",
+    "@types/node": "^24.3.0",
     "typescript": "^5"
   }
 }

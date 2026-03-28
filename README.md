@@ -1,16 +1,15 @@
-# quadratic
+# Quadratic
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Start, Convex, and more.
+Quadratic is scaffolded as a workspace-first product shell:
 
-## Features
-
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Start** - SSR framework with TanStack Router
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Convex** - Reactive backend-as-a-service platform
-- **Oxlint** - Oxlint + Oxfmt (linting & formatting)
-- **Turborepo** - Optimized monorepo build system
+- `apps/web`: TanStack Start app deployed to Cloudflare via Alchemy
+- `packages/backend/convex`: system of record, reactive queries, role checks, repo/run state
+- `packages/agent-runtime`: shared Fly/Inngest/job contracts
+- `packages/github`: GitHub App auth, webhook verification, metadata normalization
+- `packages/workos`: WorkOS normalization helpers and legacy auth utilities
+- Fly.io: ephemeral repository execution only
+- Inngest: durable orchestration between web/Convex and Fly jobs
+- WorkOS: sign-in, organization identity, memberships, invitations
 
 ## Getting Started
 
@@ -19,6 +18,32 @@ First, install the dependencies:
 ```bash
 bun install
 ```
+
+## Environment
+
+The scaffold expects separate dev and prod values for:
+
+- `APP_URL`
+- `VITE_CONVEX_URL`
+- `CONVEX_URL`
+- `WORKOS_CLIENT_ID`
+- `WORKOS_API_KEY`
+- `WORKOS_COOKIE_PASSWORD`
+- `WORKOS_REDIRECT_URI`
+- `WORKOS_LOGOUT_REDIRECT_URI`
+- `GITHUB_APP_ID`
+- `GITHUB_APP_CLIENT_ID`
+- `GITHUB_APP_CLIENT_SECRET`
+- `GITHUB_APP_PRIVATE_KEY`
+- `GITHUB_APP_WEBHOOK_SECRET`
+- `GITHUB_APP_NAME`
+- `GITHUB_APP_INSTALL_URL`
+- `INNGEST_APP_ID`
+- `INNGEST_BASE_URL`
+- `INNGEST_EVENT_KEY`
+
+The web app now uses WorkOS AuthKit for TanStack Start directly. Configure `WORKOS_REDIRECT_URI` to
+match `/api/auth/callback` in the web app and set the same callback in the WorkOS dashboard.
 
 ## Convex Setup
 
@@ -30,7 +55,7 @@ bun run dev:setup
 
 Follow the prompts to create a new Convex project and connect it to your application.
 
-Copy environment variables from `packages/backend/.env.local` to `apps/*/.env`.
+Copy environment variables from your Convex deployment and platform providers into the web app and Cloudflare bindings.
 
 Then, run the development server:
 
@@ -67,13 +92,23 @@ import { Button } from "@quadratic/ui/components/button";
 
 If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
 
-## Deployment (Cloudflare via Alchemy)
+## Deployment
 
-- Dev: cd apps/web && bun run alchemy dev
-- Deploy: cd apps/web && bun run deploy
-- Destroy: cd apps/web && bun run destroy
+### Web
 
-For more details, see the guide on [Deploying to Cloudflare with Alchemy](https://www.better-t-stack.dev/docs/guides/cloudflare-alchemy).
+Deploy `apps/web` to Cloudflare through the existing Alchemy path.
+
+### Convex
+
+Use separate Convex cloud deployments for dev and prod.
+
+### Fly
+
+Provision a dedicated worker app for ephemeral repository jobs. Workers should receive a signed callback token and report structured run results back through `/api/inngest`.
+
+### Inngest
+
+Host the event ingress from the web app for now. The current scaffold posts events to `INNGEST_BASE_URL` when configured and no-ops otherwise.
 
 ## Git Hooks and Formatting
 
@@ -84,10 +119,13 @@ For more details, see the guide on [Deploying to Cloudflare with Alchemy](https:
 ```
 quadratic/
 ├── apps/
-│   ├── web/         # Frontend application (React + TanStack Start)
+│   ├── web/                  # Cloudflare-hosted TanStack Start app
 ├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── backend/     # Convex backend functions and schema
+│   ├── agent-runtime/        # Shared job, event, and worker contracts
+│   ├── backend/              # Convex backend functions and schema
+│   ├── github/               # GitHub App helpers
+│   ├── ui/                   # Shared shadcn/ui components and styles
+│   ├── workos/               # WorkOS helpers and session utilities
 ```
 
 ## Available Scripts

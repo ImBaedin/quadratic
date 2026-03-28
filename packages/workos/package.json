@@ -1,0 +1,25 @@
+{
+  "name": "@quadratic/workos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth.ts",
+    "./env": "./src/env.ts",
+    "./normalization": "./src/normalization.ts",
+    "./session": "./src/session.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@quadratic/config": "workspace:*",
+    "typescript": "^5"
+  }
+}

@@ -9,6 +9,7 @@
     "dev:setup": "convex dev --configure --until-success"
   },
   "dependencies": {
+    "@quadratic/agent-runtime": "workspace:*",
     "convex": "catalog:",
     "dotenv": "catalog:",
     "zod": "catalog:"

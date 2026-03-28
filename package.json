@@ -11,6 +11,7 @@
       "zod": "^4.1.13",
       "lucide-react": "^0.546.0",
       "next-themes": "^0.4.6",
+      "inngest": "^3.39.1",
       "react": "^19.2.3",
       "react-dom": "^19.2.3",
       "sonner": "^2.0.5",
@@ -26,6 +27,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "check-types": "turbo check-types",
+    "test": "bun test",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F @quadratic/backend dev",
     "dev:setup": "turbo -F @quadratic/backend dev:setup",
@@ -41,6 +43,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251213.0",
     "@quadratic/config": "workspace:*",
+    "@types/node": "^24.3.0",
     "oxfmt": "^0.26.0",
     "oxlint": "^1.41.0",
     "turbo": "^2.8.12",

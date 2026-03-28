@@ -1,51 +1,66 @@
-import { convexQuery } from "@convex-dev/react-query";
-import { api } from "@quadratic/backend/convex/_generated/api";
-import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/")({
-  component: HomeComponent,
+import { useJson } from "../components/workspace/use-json";
+
+export const Route = createFileRoute("/" as never)({
+  component: HomePage,
 });
 
-const TITLE_TEXT = `
- ██████╗ ███████╗████████╗████████╗███████╗██████╗
- ██╔══██╗██╔════╝╚══██╔══╝╚══██╔══╝██╔════╝██╔══██╗
- ██████╔╝█████╗     ██║      ██║   █████╗  ██████╔╝
- ██╔══██╗██╔══╝     ██║      ██║   ██╔══╝  ██╔══██╗
- ██████╔╝███████╗   ██║      ██║   ███████╗██║  ██║
- ╚═════╝ ╚══════╝   ╚═╝      ╚═╝   ╚══════╝╚═╝  ╚═╝
+function HomePage() {
+  const session = useJson<{
+    session: { userId: string; email: string; activeWorkspaceId?: string } | null;
+    workspaces: { slug: string; name: string; role: string }[];
+  }>("/api/platform/session");
 
- ████████╗    ███████╗████████╗ █████╗  ██████╗██╗  ██╗
- ╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝
-    ██║       ███████╗   ██║   ███████║██║     █████╔╝
-    ██║       ╚════██║   ██║   ██╔══██║██║     ██╔═██╗
-    ██║       ███████║   ██║   ██║  ██║╚██████╗██║  ██╗
-    ╚═╝       ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
- `;
-
-function HomeComponent() {
-  const healthCheck = useQuery(convexQuery(api.healthCheck.get, {}));
+  useEffect(() => {
+    if (session.data?.workspaces?.length) {
+      window.location.assign(`/${session.data.workspaces[0]!.slug}`);
+    }
+  }, [session.data]);
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-2">
-      <pre className="overflow-x-auto font-mono text-sm">{TITLE_TEXT}</pre>
-      <div className="grid gap-6">
-        <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-medium">API Status</h2>
-          <div className="flex items-center gap-2">
-            <div
-              className={`h-2 w-2 rounded-full ${healthCheck.data === "OK" ? "bg-green-500" : healthCheck.isLoading ? "bg-orange-400" : "bg-red-500"}`}
-            />
-            <span className="text-muted-foreground text-sm">
-              {healthCheck.isLoading
-                ? "Checking..."
-                : healthCheck.data === "OK"
-                  ? "Connected"
-                  : "Error"}
-            </span>
+    <main className="mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-6xl flex-col justify-center gap-8 px-4 py-16">
+      <section className="grid gap-8 rounded-[2rem] border border-zinc-800 bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.18),_transparent_40%),linear-gradient(180deg,_rgba(24,24,27,0.98),_rgba(9,9,11,1))] p-10 md:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-5">
+          <div className="text-xs uppercase tracking-[0.35em] text-sky-300">Quadratic Scaffold</div>
+          <h1 className="max-w-xl text-5xl font-semibold tracking-tight text-white">
+            Team onboarding around workspaces, GitHub installs, and ephemeral repo jobs.
+          </h1>
+          <p className="max-w-xl text-base text-zinc-400">
+            This scaffold keeps TanStack Start on Cloudflare, Convex as system of record, Inngest for
+            orchestration, and Fly for one-shot repository execution.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/login"
+              className="rounded-full bg-sky-400 px-5 py-3 text-sm font-medium text-zinc-950 transition hover:bg-sky-300"
+            >
+              Sign in with WorkOS
+            </Link>
+            <Link
+              to="/onboarding"
+              className="rounded-full border border-zinc-700 px-5 py-3 text-sm text-zinc-200 transition hover:border-zinc-500"
+            >
+              Open onboarding
+            </Link>
           </div>
-        </section>
-      </div>
-    </div>
+        </div>
+        <div className="grid gap-4 rounded-[1.5rem] border border-zinc-800 bg-black/30 p-6">
+          {[
+            "Auth and session flow with WorkOS",
+            "Workspace creation and membership shell",
+            "GitHub App installation callback and webhook entrypoints",
+            "Repository selection, default branch, and invite management",
+            "Agent run lifecycle and Inngest/Fly worker contracts",
+          ].map((item) => (
+            <div key={item} className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 text-sm text-zinc-300">
+              {item}
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
