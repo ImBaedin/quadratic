@@ -93,6 +93,15 @@ export type RepositoryExecutionRequest = z.infer<
   typeof repositoryExecutionRequestSchema
 >;
 
+export const repositoryExecutionEventSchema = z.object({
+  type: z.string().min(1),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+export type RepositoryExecutionEvent = z.infer<
+  typeof repositoryExecutionEventSchema
+>;
+
 export const taskPlanningRequestSchema = z.object({
   taskId: z.string(),
   runId: z.string(),
@@ -115,6 +124,7 @@ export const repositoryExecutionResultSchema = z.object({
   summary: z.string().optional(),
   error: z.string().optional(),
   artifacts: z.array(runArtifactSchema).default([]),
+  events: z.array(repositoryExecutionEventSchema).optional(),
 });
 
 export type RepositoryExecutionResult = z.infer<

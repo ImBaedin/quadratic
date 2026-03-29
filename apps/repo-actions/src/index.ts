@@ -1,18 +1,47 @@
 import { createServer, type IncomingMessage } from "node:http";
-import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, normalize, relative } from "node:path";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 
+import { openRouterText } from "@tanstack/ai-openrouter";
+import {
+  repositoryExecutionRequestSchema,
+  repositoryExecutionResultSchema,
+  runArtifactSchema,
+  taskPlanningRequestSchema,
+  taskPlanningResultSchema,
+  toolDefinition,
+  runRepositoryAgent,
+  type RunArtifact,
+  type RunLogger,
+  type ToolCall,
+  type ToolResult,
+} from "@quadratic/agent-runtime";
 import { z } from "zod";
 
 const port = Number(process.env.PORT ?? "8080");
 const serviceToken = process.env.SERVICE_TOKEN;
+const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+const repositoryModel = process.env.REPO_ACTIONS_MODEL ?? "openai/gpt-5.4-nano";
+const repositoryModelId = repositoryModel as Parameters<typeof openRouterText>[0];
 const execFile = promisify(execFileCallback);
 
 if (!serviceToken) {
   throw new Error("SERVICE_TOKEN is required");
+}
+
+if (!openRouterApiKey) {
+  throw new Error("OPENROUTER_API_KEY is required");
 }
 
 const ignoredDirectories = new Set([
@@ -24,50 +53,6 @@ const ignoredDirectories = new Set([
   ".turbo",
   ".cache",
 ]);
-
-const runStatusSchema = z.enum([
-  "queued",
-  "requested",
-  "launching",
-  "running",
-  "succeeded",
-  "failed",
-  "cancelled",
-  "timed_out",
-]);
-
-const runKindSchema = z.enum(["repository_sync", "repository_explore", "agent_tool"]);
-
-const runArtifactSchema = z.object({
-  kind: z.string(),
-  key: z.string(),
-  label: z.string().optional(),
-  contentType: z.string().optional(),
-  url: z.string().url().optional(),
-  metadata: z.record(z.string(), z.string()).optional(),
-});
-
-const repositoryExecutionRequestSchema = z.object({
-  runId: z.string(),
-  workspaceId: z.string(),
-  repositoryId: z.string(),
-  githubInstallationId: z.string(),
-  repositoryFullName: z.string(),
-  branch: z.string(),
-  kind: runKindSchema,
-  requestedAt: z.string().datetime(),
-  metadata: z.record(z.string(), z.unknown()).default({}),
-});
-
-const repositoryExecutionResultSchema = z.object({
-  runId: z.string(),
-  status: runStatusSchema,
-  startedAt: z.string().datetime().optional(),
-  completedAt: z.string().datetime().optional(),
-  summary: z.string().optional(),
-  error: z.string().optional(),
-  artifacts: z.array(runArtifactSchema).default([]),
-});
 
 const taskPlanningDraftSchema = z.object({
   title: z.string().min(1),
@@ -82,61 +67,26 @@ const taskPlanningDraftSchema = z.object({
   ),
 });
 
-const taskPlanningQuestionSchema = z.object({
-  key: z.string().min(1),
-  question: z.string().min(1),
-});
-
-const taskPlanningEventSchema = z.object({
-  type: z.string().min(1),
-  payload: z.record(z.string(), z.unknown()),
-});
-
-const taskPlanningRequestSchema = z.object({
-  taskId: z.string(),
-  runId: z.string(),
-  workspaceId: z.string(),
-  repositoryId: z.string(),
-  githubInstallationId: z.string(),
-  repositoryFullName: z.string(),
-  branch: z.string(),
-  requestedAt: z.string().datetime(),
-  metadata: z.record(z.string(), z.unknown()).default({}),
-});
-
-const taskPlanningResultSchema = z
-  .object({
-    taskId: z.string(),
-    runId: z.string(),
-    status: runStatusSchema,
-    startedAt: z.string().datetime().optional(),
-    completedAt: z.string().datetime().optional(),
-    draft: taskPlanningDraftSchema.optional(),
-    questions: z.array(taskPlanningQuestionSchema).optional(),
-    summary: z.string().optional(),
-    error: z.string().optional(),
-    events: z.array(taskPlanningEventSchema).optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.status === "succeeded" && !value.draft) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Successful task planning results must include a draft.",
-        path: ["draft"],
-      });
-    }
-  });
-
 type RepoMetadata = {
   installationToken: string;
   prompt?: string;
   title?: string;
+  plan?: string;
+  acceptanceCriteria?: string[];
+  suggestedFiles?: Array<{ path: string; reason?: string }>;
+  answeredQuestions?: Array<{ key: string; question: string; answer: string }>;
+  taskId?: string;
 };
 
 type RepoSnapshot = {
   repositoryRoot: string;
   files: string[];
   preview: Array<{ path: string; snippet: string }>;
+};
+
+type ExecutionEvent = {
+  type: string;
+  payload: Record<string, unknown>;
 };
 
 const server = createServer(async (incomingRequest, outgoingResponse) => {
@@ -212,11 +162,14 @@ async function handleTaskPlanning(request: Request) {
 
   try {
     const metadata = parseRepoMetadata(payload.metadata);
-    const snapshot = await inspectRepository({
-      repositoryFullName: payload.repositoryFullName,
-      branch: payload.branch,
-      installationToken: metadata.installationToken,
-    });
+    const snapshot = await withClonedRepository(
+      {
+        repositoryFullName: payload.repositoryFullName,
+        branch: payload.branch,
+        installationToken: metadata.installationToken,
+      },
+      async (repositoryRoot) => await inspectRepository(repositoryRoot),
+    );
 
     const prompt = normalizePrompt(metadata.prompt);
     const questions = buildQuestions(prompt, snapshot.files);
@@ -226,13 +179,13 @@ async function handleTaskPlanning(request: Request) {
       status: "succeeded",
       startedAt,
       completedAt: new Date().toISOString(),
-      draft: {
+      draft: taskPlanningDraftSchema.parse({
         title: metadata.title?.trim() || buildTitle(prompt, payload.repositoryFullName),
         normalizedPrompt: prompt,
         plan: buildPlan(payload.repositoryFullName, payload.branch, snapshot),
         acceptanceCriteria: buildAcceptanceCriteria(prompt, snapshot.files),
         suggestedFiles: buildSuggestedFiles(snapshot.files),
-      },
+      }),
       questions,
       summary: `Inspected ${snapshot.files.length} files in ${payload.repositoryFullName}.`,
       events: [
@@ -269,33 +222,63 @@ async function handleRun(request: Request) {
 
   try {
     const metadata = parseRepoMetadata(payload.metadata);
-    const snapshot = await inspectRepository({
-      repositoryFullName: payload.repositoryFullName,
-      branch: payload.branch,
-      installationToken: metadata.installationToken,
-    });
-
-    const result = repositoryExecutionResultSchema.parse({
-      runId: payload.runId,
-      status: "succeeded",
-      startedAt,
-      completedAt: new Date().toISOString(),
-      summary: buildRunSummary(payload.kind, payload.repositoryFullName, snapshot),
-      artifacts: [
-        {
-          kind: "repository_snapshot",
-          key: `run:${payload.runId}:snapshot`,
-          label: "Repository snapshot",
-          metadata: {
-            branch: payload.branch,
-            fileCount: String(snapshot.files.length),
-            topFiles: snapshot.files.slice(0, 10).join(", "),
+    const result = await withClonedRepository(
+      {
+        repositoryFullName: payload.repositoryFullName,
+        branch: payload.branch,
+        installationToken: metadata.installationToken,
+      },
+      async (repositoryRoot) => {
+        const logger = new InMemoryRunLogger(payload.runId);
+        const runtime = await runRepositoryAgent({
+          repositoryFullName: payload.repositoryFullName,
+          branch: payload.branch,
+          workingDirectory: repositoryRoot,
+          task: buildExecutionTask(metadata, payload.repositoryFullName, payload.branch),
+          extraInstructions: [
+            "Inspect the repository before making changes.",
+            "Use the available tools to read files, edit files, and run focused verification commands.",
+            "Prefer small, targeted changes that satisfy the task prompt and existing repository patterns.",
+            "Before you finish, run the narrowest validation command that gives confidence in the touched code path.",
+            "In the final response, summarize what changed and what you verified.",
+          ],
+          logger,
+          maxIterations: 16,
+          tools: createRepositoryTools(repositoryRoot),
+          adapter: openRouterText(repositoryModelId),
+          modelOptions: {
+            provider: {
+              data_collection: "deny",
+              sort: "throughput",
+            },
           },
-        },
-      ],
-    });
+          metadata: {
+            taskId: metadata.taskId,
+            repositoryFullName: payload.repositoryFullName,
+            branch: payload.branch,
+          },
+        });
 
-    return json(result);
+        const artifacts = await collectArtifacts(repositoryRoot, payload.runId, logger);
+        const summary = summarizeExecution(runtime.outputText, artifacts);
+
+        return repositoryExecutionResultSchema.parse({
+          runId: payload.runId,
+          status: runtime.finishReason === "stop" ? "succeeded" : "failed",
+          startedAt,
+          completedAt: new Date().toISOString(),
+          summary,
+          error:
+            runtime.finishReason === "stop"
+              ? undefined
+              : `Model finished with reason: ${runtime.finishReason ?? "unknown"}`,
+          artifacts,
+          events: logger.events,
+        });
+      },
+    );
+
+    return json(result, result.status === "succeeded" ? 200 : 500);
   } catch (error) {
     const result = repositoryExecutionResultSchema.parse({
       runId: payload.runId,
@@ -320,6 +303,36 @@ function parseRepoMetadata(metadata: Record<string, unknown>): RepoMetadata {
     installationToken,
     prompt: typeof metadata.prompt === "string" ? metadata.prompt : undefined,
     title: typeof metadata.title === "string" ? metadata.title : undefined,
+    plan: typeof metadata.plan === "string" ? metadata.plan : undefined,
+    acceptanceCriteria: Array.isArray(metadata.acceptanceCriteria)
+      ? metadata.acceptanceCriteria.filter((value): value is string => typeof value === "string")
+      : undefined,
+    suggestedFiles: Array.isArray(metadata.suggestedFiles)
+      ? metadata.suggestedFiles
+          .filter(
+            (value): value is { path: string; reason?: string } =>
+              typeof value === "object" &&
+              value !== null &&
+              "path" in value &&
+              typeof value.path === "string" &&
+              (!("reason" in value) || value.reason === undefined || typeof value.reason === "string"),
+          )
+      : undefined,
+    answeredQuestions: Array.isArray(metadata.answeredQuestions)
+      ? metadata.answeredQuestions
+          .filter(
+            (value): value is { key: string; question: string; answer: string } =>
+              typeof value === "object" &&
+              value !== null &&
+              "key" in value &&
+              "question" in value &&
+              "answer" in value &&
+              typeof value.key === "string" &&
+              typeof value.question === "string" &&
+              typeof value.answer === "string",
+          )
+      : undefined,
+    taskId: typeof metadata.taskId === "string" ? metadata.taskId : undefined,
   };
 }
 
@@ -387,35 +400,77 @@ function buildQuestions(prompt: string, files: string[]) {
   return questions.slice(0, 2);
 }
 
-function buildRunSummary(kind: string, repositoryFullName: string, snapshot: RepoSnapshot) {
-  const topFiles = snapshot.files.slice(0, 5).join(", ");
-  return `${kind} inspected ${repositoryFullName} and sampled ${snapshot.files.length} files${topFiles ? ` (${topFiles})` : ""}.`;
+function buildExecutionTask(
+  metadata: RepoMetadata,
+  repositoryFullName: string,
+  branch: string,
+) {
+  const lines = [
+    `Repository: ${repositoryFullName}`,
+    `Branch: ${branch}`,
+    "",
+    `Task: ${normalizePrompt(metadata.prompt)}`,
+  ];
+
+  if (metadata.plan?.trim()) {
+    lines.push("", "Planned approach:", metadata.plan.trim());
+  }
+
+  if (metadata.acceptanceCriteria?.length) {
+    lines.push("", "Acceptance criteria:");
+    for (const criterion of metadata.acceptanceCriteria) {
+      lines.push(`- ${criterion}`);
+    }
+  }
+
+  if (metadata.suggestedFiles?.length) {
+    lines.push("", "Suggested files:");
+    for (const file of metadata.suggestedFiles) {
+      lines.push(`- ${file.path}${file.reason ? `: ${file.reason}` : ""}`);
+    }
+  }
+
+  if (metadata.answeredQuestions?.length) {
+    lines.push("", "Clarifications:");
+    for (const question of metadata.answeredQuestions) {
+      lines.push(`- ${question.question}: ${question.answer}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
-async function inspectRepository(args: {
-  repositoryFullName: string;
-  branch: string;
-  installationToken: string;
-}): Promise<RepoSnapshot> {
+async function withClonedRepository<T>(
+  args: {
+    repositoryFullName: string;
+    branch: string;
+    installationToken: string;
+  },
+  callback: (repositoryRoot: string) => Promise<T>,
+) {
   const repositoryRoot = await cloneRepository(args);
 
   try {
-    const files = await listFiles(repositoryRoot, repositoryRoot);
-    const preview = await Promise.all(
-      files.slice(0, 5).map(async (path) => ({
-        path,
-        snippet: await readSnippet(join(repositoryRoot, path)),
-      })),
-    );
-
-    return {
-      repositoryRoot,
-      files: files.slice(0, 50),
-      preview,
-    };
+    return await callback(repositoryRoot);
   } finally {
     await rm(repositoryRoot, { recursive: true, force: true });
   }
+}
+
+async function inspectRepository(repositoryRoot: string): Promise<RepoSnapshot> {
+  const files = await listFiles(repositoryRoot, repositoryRoot);
+  const preview = await Promise.all(
+    files.slice(0, 5).map(async (path) => ({
+      path,
+      snippet: await readSnippet(join(repositoryRoot, path)),
+    })),
+  );
+
+  return {
+    repositoryRoot,
+    files: files.slice(0, 50),
+    preview,
+  };
 }
 
 async function cloneRepository(args: {
@@ -463,6 +518,9 @@ async function listFiles(root: string, directory: string): Promise<string[]> {
     const fullPath = join(directory, entry.name);
     if (entry.isDirectory()) {
       files.push(...(await listFiles(root, fullPath)));
+      if (files.length >= 200) {
+        break;
+      }
       continue;
     }
 
@@ -471,12 +529,12 @@ async function listFiles(root: string, directory: string): Promise<string[]> {
     }
 
     const fileStat = await stat(fullPath);
-    if (fileStat.size > 128_000) {
+    if (fileStat.size > 256_000) {
       continue;
     }
 
     files.push(relative(root, fullPath));
-    if (files.length >= 50) {
+    if (files.length >= 200) {
       break;
     }
   }
@@ -487,6 +545,263 @@ async function listFiles(root: string, directory: string): Promise<string[]> {
 async function readSnippet(path: string) {
   const contents = await readFile(path, "utf8");
   return contents.slice(0, 400).trim();
+}
+
+function createRepositoryTools(repositoryRoot: string) {
+  const listFilesTool = toolDefinition({
+    name: "list_files",
+    description: "List repository files. Use this before reading or editing unfamiliar areas.",
+    inputSchema: z.object({
+      pattern: z.string().optional(),
+      limit: z.number().int().min(1).max(200).optional(),
+    }),
+    outputSchema: z.object({
+      files: z.array(z.string()),
+    }),
+  }).server(async ({ pattern, limit }) => {
+    const files = await listFiles(repositoryRoot, repositoryRoot);
+    const filtered =
+      pattern && pattern.trim().length > 0
+        ? files.filter((file) => file.toLowerCase().includes(pattern.toLowerCase()))
+        : files;
+
+    return {
+      files: filtered.slice(0, limit ?? 100),
+    };
+  });
+
+  const readFileTool = toolDefinition({
+    name: "read_file",
+    description: "Read a text file from the repository, optionally constrained to a line range.",
+    inputSchema: z.object({
+      path: z.string(),
+      startLine: z.number().int().min(1).optional(),
+      endLine: z.number().int().min(1).optional(),
+    }),
+    outputSchema: z.object({
+      path: z.string(),
+      content: z.string(),
+    }),
+  }).server(async ({ path, startLine, endLine }) => {
+    const absolutePath = resolveRepositoryPath(repositoryRoot, path);
+    const contents = await readFile(absolutePath, "utf8");
+    const lines = contents.split("\n");
+    const from = Math.max((startLine ?? 1) - 1, 0);
+    const to = Math.max(endLine ?? lines.length, from + 1);
+
+    return {
+      path,
+      content: lines.slice(from, to).join("\n"),
+    };
+  });
+
+  const writeFileTool = toolDefinition({
+    name: "write_file",
+    description: "Write a full file in the repository. Use after reading the current file content.",
+    inputSchema: z.object({
+      path: z.string(),
+      content: z.string(),
+    }),
+    outputSchema: z.object({
+      path: z.string(),
+      bytesWritten: z.number().int().nonnegative(),
+    }),
+  }).server(async ({ path, content }) => {
+    const absolutePath = resolveRepositoryPath(repositoryRoot, path);
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, content, "utf8");
+
+    return {
+      path,
+      bytesWritten: Buffer.byteLength(content, "utf8"),
+    };
+  });
+
+  const runCommandTool = toolDefinition({
+    name: "run_command",
+    description:
+      "Run a shell command inside the repository root. Use this for ripgrep, tests, formatting, and git inspection.",
+    inputSchema: z.object({
+      command: z.string().min(1),
+      timeoutMs: z.number().int().min(1000).max(120000).optional(),
+    }),
+    outputSchema: z.object({
+      exitCode: z.number().int(),
+      stdout: z.string(),
+      stderr: z.string(),
+    }),
+  }).server(async ({ command, timeoutMs }) => await runShellCommand(repositoryRoot, command, timeoutMs));
+
+  return [listFilesTool, readFileTool, writeFileTool, runCommandTool];
+}
+
+function resolveRepositoryPath(repositoryRoot: string, requestedPath: string) {
+  const normalizedPath = normalize(requestedPath);
+  if (normalizedPath === ".." || normalizedPath.startsWith(`..${"/"}`)) {
+    throw new Error(`Path escapes repository root: ${requestedPath}`);
+  }
+
+  const absolutePath = join(repositoryRoot, normalizedPath);
+  const relativePath = relative(repositoryRoot, absolutePath);
+  if (relativePath === ".." || relativePath.startsWith(`..${"/"}`)) {
+    throw new Error(`Path escapes repository root: ${requestedPath}`);
+  }
+
+  return absolutePath;
+}
+
+async function runShellCommand(repositoryRoot: string, command: string, timeoutMs = 30_000) {
+  try {
+    const { stdout, stderr } = await execFile("bash", ["-lc", command], {
+      cwd: repositoryRoot,
+      timeout: timeoutMs,
+      maxBuffer: 2 * 1024 * 1024,
+      env: {
+        ...process.env,
+        OPENROUTER_API_KEY: openRouterApiKey,
+      },
+    });
+
+    return {
+      exitCode: 0,
+      stdout: trimOutput(stdout),
+      stderr: trimOutput(stderr),
+    };
+  } catch (error) {
+    if (typeof error === "object" && error !== null) {
+      const stderr = "stderr" in error ? trimOutput(String(error.stderr ?? "")) : "";
+      const stdout = "stdout" in error ? trimOutput(String(error.stdout ?? "")) : "";
+      const exitCode = "code" in error && typeof error.code === "number" ? error.code : 1;
+
+      return {
+        exitCode,
+        stdout,
+        stderr,
+      };
+    }
+
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: String(error),
+    };
+  }
+}
+
+function trimOutput(output: string, maxLength = 12000) {
+  if (output.length <= maxLength) {
+    return output;
+  }
+
+  return `${output.slice(0, maxLength)}\n...[truncated]`;
+}
+
+async function collectArtifacts(
+  repositoryRoot: string,
+  runId: string,
+  logger: InMemoryRunLogger,
+): Promise<RunArtifact[]> {
+  const status = await runShellCommand(repositoryRoot, "git status --short");
+  const diffStat = await runShellCommand(repositoryRoot, "git diff --stat");
+  const changedFiles = status.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.slice(3))
+    .filter(Boolean);
+
+  const artifacts: RunArtifact[] = [
+    runArtifactSchema.parse({
+      kind: "repository_diff",
+      key: `run:${runId}:diff`,
+      label: "Repository diff summary",
+      metadata: {
+        changedFiles: String(changedFiles.length),
+        topFiles: changedFiles.slice(0, 10).join(", "),
+        diffStat: diffStat.stdout.replace(/\s+/g, " ").trim().slice(0, 4000),
+      },
+    }),
+  ];
+
+  for (const artifact of artifacts) {
+    await logger.artifact(artifact);
+  }
+
+  return artifacts;
+}
+
+function summarizeExecution(outputText: string, artifacts: RunArtifact[]) {
+  const summary = outputText.trim();
+  if (summary.length > 0) {
+    return summary.slice(0, 4000);
+  }
+
+  const diffSummary = artifacts[0]?.metadata?.diffStat ?? "";
+  if (diffSummary.trim().length > 0) {
+    return `Execution completed. ${diffSummary}`;
+  }
+
+  return "Execution completed.";
+}
+
+class InMemoryRunLogger implements RunLogger {
+  events: ExecutionEvent[] = [];
+
+  constructor(private readonly runId: string) {}
+
+  async log(message: string, metadata?: Record<string, unknown>) {
+    this.push("run.progress", {
+      runId: this.runId,
+      message,
+      ...(metadata ?? {}),
+    });
+  }
+
+  async stdout(chunk: string) {
+    this.push("run.stdout", {
+      runId: this.runId,
+      chunk: trimOutput(chunk, 4000),
+    });
+  }
+
+  async stderr(chunk: string) {
+    this.push("run.stderr", {
+      runId: this.runId,
+      chunk: trimOutput(chunk, 4000),
+    });
+  }
+
+  async toolCalled(call: ToolCall) {
+    this.push("run.tool_called", {
+      runId: this.runId,
+      toolName: call.toolName,
+      callId: call.id,
+    });
+  }
+
+  async toolResult(result: ToolResult) {
+    this.push("run.tool_result", {
+      runId: this.runId,
+      toolName: result.toolName,
+      callId: result.callId,
+      ok: result.ok,
+      ...(result.error ? { error: result.error } : {}),
+    });
+  }
+
+  async artifact(artifact: RunArtifact) {
+    this.push("run.artifact", {
+      runId: this.runId,
+      kind: artifact.kind,
+      key: artifact.key,
+      ...(artifact.label ? { label: artifact.label } : {}),
+      ...(artifact.metadata ? { metadata: artifact.metadata } : {}),
+    });
+  }
+
+  private push(type: string, payload: Record<string, unknown>) {
+    this.events.push({ type, payload });
+  }
 }
 
 function json(payload: unknown, status = 200) {

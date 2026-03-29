@@ -35,6 +35,7 @@ function TaskDetailPage() {
       : "skip",
   ) as TaskDetail | null | undefined;
   const answerQuestion = useMutation(api.tasks.answerQuestion);
+  const startExecution = useMutation(api.tasks.startExecution);
 
   async function handleAnswerQuestion(questionId: string, answer: string) {
     if (!user?.id) {
@@ -47,6 +48,19 @@ function TaskDetailPage() {
       answer,
     });
     toast.success("Answer submitted.");
+  }
+
+  async function handleStartExecution() {
+    if (!user?.id) {
+      toast.error("Your session is still loading.");
+      return;
+    }
+
+    await startExecution({
+      workosUserId: user.id,
+      taskId: taskId as Id<"tasks">,
+    });
+    toast.success("Task execution started.");
   }
 
   if (task === null) {
@@ -77,7 +91,11 @@ function TaskDetailPage() {
       {/* Detail panel */}
       <div className="mx-auto w-full max-w-2xl">
         {task ? (
-          <TaskDetailPanel task={task} onAnswerQuestion={handleAnswerQuestion} />
+          <TaskDetailPanel
+            task={task}
+            onAnswerQuestion={handleAnswerQuestion}
+            onStartExecution={handleStartExecution}
+          />
         ) : (
           <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
             <span className="text-xs text-muted-foreground">Loading task…</span>

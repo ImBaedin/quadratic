@@ -535,6 +535,105 @@ export const getPlanningContext = internalQuery({
   },
 });
 
+export const getExecutionContext = internalQuery({
+  args: {
+    taskId: v.id("tasks"),
+    runId: v.id("taskRuns"),
+  },
+  returns: v.object({
+    taskId: v.id("tasks"),
+    runId: v.id("taskRuns"),
+    workspaceId: v.id("workspaces"),
+    repositoryId: v.id("repositories"),
+    branch: v.string(),
+    title: v.string(),
+    rawPrompt: v.string(),
+    normalizedPrompt: v.optional(v.string()),
+    plan: v.optional(v.string()),
+    acceptanceCriteria: v.optional(v.array(v.string())),
+    suggestedFiles: v.optional(v.array(suggestedFileValidator)),
+    repository: v.object({
+      repositoryId: v.id("repositories"),
+      fullName: v.string(),
+      owner: v.string(),
+      name: v.string(),
+      defaultBranch: v.string(),
+      selected: v.boolean(),
+      archived: v.boolean(),
+      githubInstallationId: v.number(),
+    }),
+    questions: v.array(
+      v.object({
+        questionId: v.id("taskQuestions"),
+        key: v.string(),
+        question: v.string(),
+        status: taskQuestionStatusValidator,
+        answer: v.optional(v.string()),
+      }),
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const [task, run] = await Promise.all([ctx.db.get(args.taskId), ctx.db.get(args.runId)]);
+    if (!task) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Task not found.",
+      });
+    }
+
+    if (!run || run.taskId !== task._id || run.kind !== "execution") {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Execution run not found.",
+      });
+    }
+
+    const repository = await ctx.db.get(task.repositoryId);
+    if (!repository || repository.workspaceId !== task.workspaceId) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Repository not found for task.",
+      });
+    }
+
+    const questions = await ctx.db
+      .query("taskQuestions")
+      .withIndex("by_task", (query) => query.eq("taskId", task._id))
+      .take(100);
+
+    return {
+      taskId: task._id,
+      runId: run._id,
+      workspaceId: task.workspaceId,
+      repositoryId: task.repositoryId,
+      branch: task.branch,
+      title: task.title,
+      rawPrompt: task.rawPrompt,
+      normalizedPrompt: task.normalizedPrompt,
+      plan: task.plan,
+      acceptanceCriteria: task.acceptanceCriteria,
+      suggestedFiles: task.suggestedFiles,
+      repository: {
+        repositoryId: repository._id,
+        fullName: repository.fullName,
+        owner: repository.owner,
+        name: repository.name,
+        defaultBranch: repository.defaultBranch,
+        selected: repository.selected,
+        archived: repository.archived,
+        githubInstallationId: repository.githubInstallationId,
+      },
+      questions: questions.map((question) => ({
+        questionId: question._id,
+        key: question.key,
+        question: question.question,
+        status: question.status,
+        answer: question.answer,
+      })),
+    };
+  },
+});
+
 export const answerQuestion = mutation({
   args: {
     workosUserId: v.string(),
@@ -671,6 +770,8 @@ export const startExecution = mutation({
       kind: "execution",
       status: "requested",
       requestedByUserId: user._id,
+      provider: "openrouter",
+      model: "openai/gpt-5.4-nano",
     });
 
     await ctx.db.patch(task._id, {
@@ -681,7 +782,58 @@ export const startExecution = mutation({
       latestError: undefined,
     });
 
+    await ctx.scheduler.runAfter(0, internal.orchestration.dispatchTaskExecution, {
+      taskId: task._id,
+      runId,
+    });
+
     return runId;
+  },
+});
+
+export const reportExecutionResult = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    runId: v.id("taskRuns"),
+    status: runStatusValidator,
+    summary: v.optional(v.string()),
+    error: v.optional(v.string()),
+    events: v.optional(
+      v.array(
+        v.object({
+          type: v.string(),
+          payload: v.any(),
+        }),
+      ),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.events?.length) {
+      await ctx.runMutation(internal.tasks.recordRunEvents, {
+        runId: args.runId,
+        events: args.events,
+      });
+    }
+
+    if (args.status === "succeeded") {
+      await ctx.runMutation(internal.tasks.applyExecutionResult, {
+        taskId: args.taskId,
+        runId: args.runId,
+        summary: args.summary,
+      });
+
+      return null;
+    }
+
+    await ctx.runMutation(internal.tasks.failExecutionRun, {
+      taskId: args.taskId,
+      runId: args.runId,
+      error: args.error ?? "Task execution failed.",
+      summary: args.summary,
+    });
+
+    return null;
   },
 });
 
@@ -1006,6 +1158,106 @@ export const failPlanningRun = internalMutation({
 
     await ctx.db.patch(task._id, {
       status: "failed",
+      latestError: args.error,
+      latestSummary: args.summary ?? task.latestSummary,
+      activeRunId: task.activeRunId === run._id ? undefined : task.activeRunId,
+    });
+
+    return true;
+  },
+});
+
+export const applyExecutionResult = internalMutation({
+  args: {
+    taskId: v.id("tasks"),
+    runId: v.id("taskRuns"),
+    summary: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const [task, run] = await Promise.all([ctx.db.get(args.taskId), ctx.db.get(args.runId)]);
+    if (!task) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Task not found.",
+      });
+    }
+
+    if (!run || run.taskId !== task._id || run.kind !== "execution") {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Execution run not found.",
+      });
+    }
+
+    if (isTerminalRunStatus(run.status)) {
+      return null;
+    }
+
+    const now = Date.now();
+
+    await ctx.db.patch(run._id, {
+      status: "succeeded",
+      summary: args.summary ?? run.summary,
+      error: undefined,
+      startedAt: run.startedAt ?? now,
+      completedAt: now,
+    });
+
+    await ctx.db.patch(task._id, {
+      status: "completed",
+      phase: "delivery",
+      latestSummary: args.summary ?? task.latestSummary,
+      latestError: undefined,
+      activeRunId: task.activeRunId === run._id ? undefined : task.activeRunId,
+      completedAt: now,
+    });
+
+    return null;
+  },
+});
+
+export const failExecutionRun = internalMutation({
+  args: {
+    taskId: v.id("tasks"),
+    runId: v.id("taskRuns"),
+    error: v.string(),
+    summary: v.optional(v.string()),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const [task, run] = await Promise.all([ctx.db.get(args.taskId), ctx.db.get(args.runId)]);
+    if (!task) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Task not found.",
+      });
+    }
+
+    if (!run || run.taskId !== task._id || run.kind !== "execution") {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Execution run not found.",
+      });
+    }
+
+    if (isTerminalRunStatus(run.status)) {
+      return false;
+    }
+
+    const now = Date.now();
+
+    await ctx.db.patch(run._id, {
+      status: "failed",
+      summary: args.summary ?? run.summary,
+      error: args.error,
+      startedAt: run.startedAt ?? now,
+      completedAt: now,
+    });
+
+    await ctx.db.patch(task._id, {
+      status: "failed",
+      phase: "delivery",
       latestError: args.error,
       latestSummary: args.summary ?? task.latestSummary,
       activeRunId: task.activeRunId === run._id ? undefined : task.activeRunId,

@@ -19,9 +19,14 @@ import { TaskStatusBadge } from "./task-status-badge";
 interface TaskDetailPanelProps {
   task: TaskDetail;
   onAnswerQuestion?: (questionId: string, answer: string) => Promise<void>;
+  onStartExecution?: () => Promise<void>;
 }
 
-export function TaskDetailPanel({ task, onAnswerQuestion }: TaskDetailPanelProps) {
+export function TaskDetailPanel({
+  task,
+  onAnswerQuestion,
+  onStartExecution,
+}: TaskDetailPanelProps) {
   const isExecuting = task.status === "executing";
   const hasEnrichedData =
     task.plan ||
@@ -32,6 +37,7 @@ export function TaskDetailPanel({ task, onAnswerQuestion }: TaskDetailPanelProps
   const pendingQuestions = task.questions.filter((q) => q.status === "pending");
   const answeredQuestions = task.questions.filter((q) => q.status === "answered");
   const allAnswered = pendingQuestions.length === 0 && answeredQuestions.length > 0;
+  const canStartExecution = task.status === "ready" && pendingQuestions.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,14 +61,29 @@ export function TaskDetailPanel({ task, onAnswerQuestion }: TaskDetailPanelProps
         </CardHeader>
         <Separator />
         <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex gap-2">
               <span className="text-muted-foreground">Repository</span>
               <span className="font-medium text-foreground">{task.repositoryFullName}</span>
             </div>
+            {canStartExecution && onStartExecution ? (
+              <ExecuteTaskButton onStartExecution={onStartExecution} />
+            ) : null}
           </div>
         </CardContent>
       </Card>
+
+      {task.latestSummary ? (
+        <div className="rounded-xl border border-border/60 bg-card px-4 py-3 text-xs text-muted-foreground">
+          {task.latestSummary}
+        </div>
+      ) : null}
+
+      {task.latestError ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-destructive">
+          {task.latestError}
+        </div>
+      ) : null}
 
       {/* Executing spinner */}
       {isExecuting && !hasEnrichedData && (
@@ -195,6 +216,34 @@ export function TaskDetailPanel({ task, onAnswerQuestion }: TaskDetailPanelProps
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+function ExecuteTaskButton({ onStartExecution }: { onStartExecution: () => Promise<void> }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleClick() {
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      await onStartExecution();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start execution.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <Button size="sm" onClick={handleClick} disabled={submitting}>
+        <PaperPlaneTilt className="size-3.5" weight="fill" />
+        {submitting ? "Starting..." : "Run task"}
+      </Button>
+      {error ? <p className="text-[0.65rem] text-destructive">{error}</p> : null}
     </div>
   );
 }

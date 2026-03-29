@@ -22,6 +22,8 @@
     "apps/repo-actions": {
       "name": "repo-actions",
       "dependencies": {
+        "@quadratic/agent-runtime": "workspace:*",
+        "@tanstack/ai-openrouter": "^0.6.8",
         "zod": "^4.1.13",
       },
       "devDependencies": {
@@ -574,6 +576,8 @@
 
     "@open-draft/until": ["@open-draft/until@2.1.0", "", {}, "sha512-U69T3ItWHvLwGg5eJ0n3I62nWuE6ilHlmz7zM0npLBRvPRd7e6NYmg54vvRtP5mZG7kZqZCFVdsTWo7BPtBujg=="],
 
+    "@openrouter/sdk": ["@openrouter/sdk@0.3.15", "", { "dependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-tmiMQGu6L1fHD9NpIABN9LALEZitqM27CFebSVyJTQDcxCcR3m1F6v1O1MnOlLmedCFU+/BojniRGFAXo1F3Bw=="],
+
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 
     "@oxfmt/darwin-arm64": ["@oxfmt/darwin-arm64@0.26.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-AAGc+8CffkiWeVgtWf4dPfQwHEE5c/j/8NWH7VGVxxJRCZFdmWcqCXprvL2H6qZFewvDLrFbuSPRCqYCpYGaTQ=="],
@@ -873,6 +877,8 @@
     "@tanstack/ai": ["@tanstack/ai@0.9.1", "", { "dependencies": { "@tanstack/ai-event-client": "0.1.3", "partial-json": "^0.1.7" } }, "sha512-u4CUBda74rhOhdax8qPq8asXH2O8k6AzLPxFNBcP9PRCCrCoxYCvsIXaI7tdf2Jrk0zxLvMdnDLct91V8ehTdQ=="],
 
     "@tanstack/ai-event-client": ["@tanstack/ai-event-client@0.1.3", "", { "dependencies": { "@tanstack/devtools-event-client": "^0.4.1" }, "peerDependencies": { "@tanstack/ai": "0.9.1" } }, "sha512-SPqnN9xU5qFD3Lwp32YM33V8+vIvofsBh9FxhhIdPshyH0J306UuT238YTemFrsvR6tqYvAfYOu28X/iy6byQw=="],
+
+    "@tanstack/ai-openrouter": ["@tanstack/ai-openrouter@0.6.8", "", { "dependencies": { "@openrouter/sdk": "0.3.15", "@tanstack/ai": "0.9.1" } }, "sha512-M8dWKflHVKeXpWRk41hpFYL4ngqQgfKuux4p8SP5PYMijI4uFYEwvQI7/Ex13U6DvzhHWRlm4vDaNwIoyYy8yQ=="],
 
     "@tanstack/devtools-event-client": ["@tanstack/devtools-event-client@0.4.3", "", { "bin": { "intent": "bin/intent.js" } }, "sha512-OZI6QyULw0FI0wjgmeYzCIfbgPsOEzwJtCpa69XrfLMtNXLGnz3d/dIabk7frg0TmHo+Ah49w5I4KC7Tufwsvw=="],
 

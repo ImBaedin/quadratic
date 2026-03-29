@@ -191,6 +191,7 @@ export const dispatchAgentRun = internalAction({
         status: result.status,
         summary: result.summary,
         error: result.error,
+        events: result.events,
       });
     } catch (error) {
       await ctx.runMutation(api.agentRuns.reportResult, {
@@ -198,6 +199,89 @@ export const dispatchAgentRun = internalAction({
         status: "failed",
         error: error instanceof Error ? error.message : "Repository action failed.",
         summary: "Repository action dispatch failed.",
+      });
+    }
+
+    return null;
+  },
+});
+
+export const dispatchTaskExecution = internalAction({
+  args: {
+    taskId: v.id("tasks"),
+    runId: v.id("taskRuns"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    try {
+      const context = await ctx.runQuery(internal.tasks.getExecutionContext, {
+        taskId: args.taskId,
+        runId: args.runId,
+      });
+
+      await ctx.runMutation(internal.tasks.transitionRunStatus, {
+        runId: args.runId,
+        status: "launching",
+        summary: "Dispatching task execution.",
+      });
+
+      const githubToken = await createGitHubToken(context.repository.githubInstallationId);
+      const request = repositoryExecutionRequestSchema.parse({
+        runId: String(context.runId),
+        workspaceId: String(context.workspaceId),
+        repositoryId: String(context.repositoryId),
+        githubInstallationId: String(context.repository.githubInstallationId),
+        repositoryFullName: context.repository.fullName,
+        branch: context.branch,
+        kind: "agent_tool",
+        requestedAt: new Date().toISOString(),
+        metadata: {
+          installationToken: githubToken,
+          taskId: String(context.taskId),
+          title: context.title,
+          prompt: context.normalizedPrompt ?? context.rawPrompt,
+          plan: context.plan,
+          acceptanceCriteria: context.acceptanceCriteria ?? [],
+          suggestedFiles: context.suggestedFiles ?? [],
+          answeredQuestions: context.questions
+            .filter((question) => question.answer)
+            .map((question) => ({
+              key: question.key,
+              question: question.question,
+              answer: question.answer,
+            })),
+          repository: context.repository,
+        },
+      });
+
+      await ctx.runMutation(internal.tasks.transitionRunStatus, {
+        runId: args.runId,
+        status: "running",
+        summary: "Task execution is running.",
+      });
+
+      const json = await postToRepoActions("/runs", request);
+      const result = repositoryExecutionResultSchema.parse(json);
+
+      if (result.runId !== request.runId) {
+        throw new Error("Repository actions service returned a mismatched execution run identifier.");
+      }
+
+      await ctx.runMutation(api.tasks.reportExecutionResult, {
+        taskId: args.taskId,
+        runId: args.runId,
+        status: result.status,
+        summary: result.summary,
+        error: result.error,
+        events: result.events,
+      });
+    } catch (error) {
+      await ctx.runMutation(api.tasks.reportExecutionResult, {
+        taskId: args.taskId,
+        runId: args.runId,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Task execution failed.",
+        summary: "Task execution dispatch failed.",
       });
     }
 
