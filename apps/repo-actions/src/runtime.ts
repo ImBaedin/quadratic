@@ -226,10 +226,12 @@ async function runAgentRuntime(options: AgentRuntimeOptions): Promise<AgentRunti
 }
 
 function createToolCall(chunk: ToolCallStartEvent): ToolCall {
+  const input = parseToolInput(chunk);
+
   return {
     id: chunk.toolCallId,
     toolName: chunk.toolName,
-    input: {},
+    input: input ?? {},
     startedAt: new Date(chunk.timestamp).toISOString(),
   };
 }
@@ -260,6 +262,38 @@ function parseToolPayload(value: string | undefined): Record<string, unknown> | 
     return asRecord(JSON.parse(value));
   } catch {
     return { value };
+  }
+}
+
+function parseToolInput(chunk: ToolCallStartEvent): Record<string, unknown> | undefined {
+  const candidate = chunk as ToolCallStartEvent & {
+    input?: unknown;
+    args?: unknown;
+    rawInput?: unknown;
+  };
+
+  const directInput = asRecord(candidate.input) ?? asRecord(candidate.args) ?? asRecord(candidate.rawInput);
+  if (directInput) {
+    return directInput;
+  }
+
+  const serializedInput =
+    typeof candidate.input === "string"
+      ? candidate.input
+      : typeof candidate.args === "string"
+        ? candidate.args
+        : typeof candidate.rawInput === "string"
+          ? candidate.rawInput
+          : undefined;
+
+  if (!serializedInput) {
+    return undefined;
+  }
+
+  try {
+    return asRecord(JSON.parse(serializedInput));
+  } catch {
+    return { value: serializedInput };
   }
 }
 

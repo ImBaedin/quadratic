@@ -50,6 +50,14 @@ export interface TaskRun {
   model?: string;
   summary?: string;
   error?: string;
+  events: TaskRunEvent[];
+}
+
+export interface TaskRunEvent {
+  eventId: string;
+  timestamp: number;
+  type: string;
+  payload: Record<string, unknown>;
 }
 
 export interface TaskDetail {

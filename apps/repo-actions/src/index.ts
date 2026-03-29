@@ -767,6 +767,8 @@ class InMemoryRunLogger implements RunLogger {
       runId: this.runId,
       toolName: call.toolName,
       callId: call.id,
+      input: call.input,
+      startedAt: call.startedAt,
     });
   }
 
@@ -776,7 +778,9 @@ class InMemoryRunLogger implements RunLogger {
       toolName: result.toolName,
       callId: result.callId,
       ok: result.ok,
+      ...(result.output ? { output: result.output } : {}),
       ...(result.error ? { error: result.error } : {}),
+      finishedAt: result.finishedAt,
     });
   }
 

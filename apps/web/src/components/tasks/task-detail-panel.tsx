@@ -2,18 +2,27 @@ import { useState } from "react";
 import {
   CircleNotch,
   CheckSquare,
+  CaretDown,
+  ClockCounterClockwise,
   File,
   Question,
   ListChecks,
   CheckCircle,
   PaperPlaneTilt,
+  TerminalWindow,
 } from "@phosphor-icons/react";
+import { Badge } from "@quadratic/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@quadratic/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@quadratic/ui/components/collapsible";
 import { Separator } from "@quadratic/ui/components/separator";
 import { Button } from "@quadratic/ui/components/button";
 import { Textarea } from "@quadratic/ui/components/textarea";
 import { cn } from "@/lib/utils";
-import type { TaskDetail, TaskQuestion } from "@/lib/task-types";
+import type { TaskDetail, TaskQuestion, TaskRun, TaskRunEvent } from "@/lib/task-types";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskDetailPanelProps {
@@ -207,6 +216,8 @@ export function TaskDetailPanel({
         </Card>
       )}
 
+      {task.runs.length > 0 && <TaskRunLogs task={task} />}
+
       {/* Drafting / planning state */}
       {(task.status === "drafting" || task.status === "ready") && !hasEnrichedData && (
         <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
@@ -218,6 +229,254 @@ export function TaskDetailPanel({
       )}
     </div>
   );
+}
+
+function TaskRunLogs({ task }: { task: TaskDetail }) {
+  const totalEvents = task.runs.reduce((count, run) => count + run.events.length, 0);
+
+  return (
+    <Card className="overflow-hidden">
+      <Collapsible>
+        <CardHeader className="pb-3">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 rounded-lg text-left outline-none">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/30">
+                <TerminalWindow className="size-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-sm">Agent logs</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {task.runs.length} {task.runs.length === 1 ? "run" : "runs"} and {totalEvents}{" "}
+                  raw events
+                </p>
+              </div>
+            </div>
+            <CaretDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[panel-open]:rotate-180" />
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <Separator />
+          <CardContent className="flex flex-col gap-4 pt-4">
+            {task.runs.map((run) => (
+              <TaskRunLogCard key={run.runId} run={run} />
+            ))}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+}
+
+function TaskRunLogCard({ run }: { run: TaskRun }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/15">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2.5">
+        <Badge variant="outline" className="font-medium capitalize">
+          {run.kind}
+        </Badge>
+        <Badge variant="secondary" className="font-medium capitalize">
+          {formatRunStatus(run.status)}
+        </Badge>
+        <span className="font-mono text-[0.65rem] text-muted-foreground">{run.runId}</span>
+        {run.model ? (
+          <span className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 font-mono text-[0.65rem] text-muted-foreground">
+            {run.model}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-3 px-3 py-3">
+        <div className="flex flex-wrap items-center gap-3 text-[0.7rem] text-muted-foreground">
+          {run.startedAt ? (
+            <span className="inline-flex items-center gap-1">
+              <ClockCounterClockwise className="size-3" />
+              Started {formatTimestamp(run.startedAt)}
+            </span>
+          ) : null}
+          {run.completedAt ? <span>Completed {formatTimestamp(run.completedAt)}</span> : null}
+        </div>
+
+        {run.summary ? (
+          <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+            {run.summary}
+          </div>
+        ) : null}
+
+        {run.error ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            {run.error}
+          </div>
+        ) : null}
+
+        {run.events.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {run.events.map((event) => (
+              <TaskRunEventRow key={event.eventId} event={event} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
+            No recorded events for this run.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TaskRunEventRow({ event }: { event: TaskRunEvent }) {
+  const label = formatEventLabel(event);
+  const details = formatEventDetails(event);
+  const payload = sanitizePayload(event.payload, event.type);
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-background/80 px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 font-mono text-[0.65rem] text-muted-foreground">
+            {event.type}
+          </span>
+          <span className="text-xs font-medium text-foreground">{label}</span>
+        </div>
+        <time className="text-[0.65rem] tabular-nums text-muted-foreground">
+          {formatTimestamp(event.timestamp)}
+        </time>
+      </div>
+
+      {details ? <p className="mt-2 text-xs text-muted-foreground">{details}</p> : null}
+
+      {payload ? (
+        <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-muted/30 p-2 text-[0.68rem] leading-relaxed text-muted-foreground">
+          {JSON.stringify(payload, null, 2)}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
+function formatRunStatus(status: TaskRun["status"]) {
+  return status.replaceAll("_", " ");
+}
+
+function formatEventLabel(event: TaskRunEvent) {
+  switch (event.type) {
+    case "run.tool_called":
+      return `Called ${readString(event.payload.toolName) ?? "tool"}`;
+    case "run.tool_result":
+      return `${readBoolean(event.payload.ok) === false ? "Failed" : "Finished"} ${readString(event.payload.toolName) ?? "tool"}`;
+    case "run.stdout":
+      return "Assistant output";
+    case "run.stderr":
+      return "Runtime error output";
+    case "run.progress":
+      return readString(event.payload.message) ?? "Progress update";
+    case "run.artifact":
+      return `Artifact ${readString(event.payload.kind) ?? "recorded"}`;
+    default:
+      return event.type.replace("run.", "").replaceAll("_", " ");
+  }
+}
+
+function formatEventDetails(event: TaskRunEvent) {
+  switch (event.type) {
+    case "run.tool_called":
+      return summarizeToolInput(event.payload.input);
+    case "run.tool_result":
+      return readString(event.payload.error) ?? summarizeToolOutput(event.payload.output);
+    case "run.stdout":
+    case "run.stderr":
+      return readString(event.payload.chunk);
+    case "run.progress":
+      return undefined;
+    default:
+      return undefined;
+  }
+}
+
+function summarizeToolInput(value: unknown) {
+  const input = asRecord(value);
+  if (!input) {
+    return undefined;
+  }
+
+  if (typeof input.path === "string") {
+    const range =
+      typeof input.startLine === "number" || typeof input.endLine === "number"
+        ? ` (${input.startLine ?? 1}-${input.endLine ?? "end"})`
+        : "";
+    return `Path: ${input.path}${range}`;
+  }
+
+  if (typeof input.command === "string") {
+    return `Command: ${input.command}`;
+  }
+
+  if (typeof input.pattern === "string") {
+    return `Pattern: ${input.pattern}`;
+  }
+
+  return undefined;
+}
+
+function summarizeToolOutput(value: unknown) {
+  const output = asRecord(value);
+  if (!output) {
+    return undefined;
+  }
+
+  if (typeof output.path === "string" && typeof output.content === "string") {
+    return `Read ${output.path}`;
+  }
+
+  if (typeof output.path === "string" && typeof output.bytesWritten === "number") {
+    return `Wrote ${output.path}`;
+  }
+
+  if (Array.isArray(output.files)) {
+    return `Listed ${output.files.length} files`;
+  }
+
+  if (typeof output.exitCode === "number") {
+    return `Command exited with code ${output.exitCode}`;
+  }
+
+  return undefined;
+}
+
+function sanitizePayload(payload: Record<string, unknown>, eventType: string) {
+  const entries = Object.entries(payload).filter(([key]) => key !== "runId");
+  if (entries.length === 0) {
+    return null;
+  }
+
+  if (eventType === "run.progress" && entries.length === 1 && entries[0]?.[0] === "message") {
+    return null;
+  }
+
+  return Object.fromEntries(entries);
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function readBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function formatTimestamp(timestamp: number) {
+  return new Date(timestamp).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function ExecuteTaskButton({ onStartExecution }: { onStartExecution: () => Promise<void> }) {

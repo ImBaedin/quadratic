@@ -92,6 +92,13 @@ const runRecordValidator = v.object({
   error: v.optional(v.string()),
 });
 
+const runEventRecordValidator = v.object({
+  eventId: v.id("taskRunEvents"),
+  timestamp: v.number(),
+  type: v.string(),
+  payload: v.any(),
+});
+
 function assertTaskCanMoveToExecution(task: Doc<"tasks">, pendingQuestions: Doc<"taskQuestions">[]) {
   if (task.status === "cancelled" || task.status === "completed") {
     throw new ConvexError({
@@ -230,7 +237,12 @@ export const get = query({
       planningRunId: v.optional(v.id("taskRuns")),
       executionRunId: v.optional(v.id("taskRuns")),
       questions: v.array(questionRecordValidator),
-      runs: v.array(runRecordValidator),
+      runs: v.array(
+        v.object({
+          ...runRecordValidator.fields,
+          events: v.array(runEventRecordValidator),
+        }),
+      ),
     }),
   ),
   handler: async (ctx, args) => {
@@ -257,6 +269,35 @@ export const get = query({
         .order("desc")
         .take(50),
     ]);
+
+    const runEventsByRunId = new Map<
+      Doc<"taskRuns">["_id"],
+      Array<{
+        eventId: Doc<"taskRunEvents">["_id"];
+        timestamp: number;
+        type: string;
+        payload: unknown;
+      }>
+    >();
+
+    await Promise.all(
+      runs.map(async (run) => {
+        const events = await ctx.db
+          .query("taskRunEvents")
+          .withIndex("by_run", (query) => query.eq("runId", run._id))
+          .collect();
+
+        runEventsByRunId.set(
+          run._id,
+          events.map((event) => ({
+            eventId: event._id,
+            timestamp: event.timestamp,
+            type: event.type,
+            payload: event.payload,
+          })),
+        );
+      }),
+    );
 
     return {
       taskId: task._id,
@@ -297,6 +338,7 @@ export const get = query({
         model: run.model,
         summary: run.summary,
         error: run.error,
+        events: runEventsByRunId.get(run._id) ?? [],
       })),
     };
   },
