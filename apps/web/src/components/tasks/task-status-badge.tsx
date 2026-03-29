@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { TaskStatus } from "@/lib/mock-data";
+import type { TaskStatus } from "@/lib/task-types";
 import { TASK_STATUS_CONFIG } from "@/lib/task-status";
 
 interface TaskStatusBadgeProps {

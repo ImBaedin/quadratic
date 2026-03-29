@@ -10,11 +10,11 @@ import {
   EmptyContent,
 } from "@quadratic/ui/components/empty";
 import { cn } from "@/lib/utils";
-import type { MockTask } from "@/lib/mock-data";
+import type { TaskListItem } from "@/lib/task-types";
 import { TaskStatusBadge } from "./task-status-badge";
 
-function relativeTime(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+function relativeTime(timestamp: number): string {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -22,11 +22,11 @@ function relativeTime(date: Date): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
-  return date.toLocaleDateString();
+  return new Date(timestamp).toLocaleDateString();
 }
 
 interface TaskListProps {
-  tasks: MockTask[];
+  tasks: TaskListItem[];
   workspaceSlug: string;
   onNewTask?: () => void;
 }
@@ -73,13 +73,15 @@ function TaskRow({
   task,
   workspaceSlug,
 }: {
-  task: MockTask;
+  task: TaskListItem;
   workspaceSlug: string;
 }) {
+  const updatedAt = task.completedAt ?? task.readyForExecutionAt ?? task.createdAt;
+
   return (
     <li>
       <Link
-        to={`/${workspaceSlug}/tasks/${task.taskId}`}
+        to={`/${workspaceSlug}/tasks/${task.taskId}` as never}
         className={cn(
           "flex items-center gap-3 px-4 py-3 text-xs transition-colors hover:bg-muted/40",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
@@ -95,15 +97,15 @@ function TaskRow({
 
         {/* Repo name */}
         <span className="hidden shrink-0 text-muted-foreground sm:inline">
-          {task.repoName}
+          {task.repositoryFullName}
         </span>
 
         {/* Timestamp */}
         <time
-          dateTime={task.updatedAt.toISOString()}
+          dateTime={new Date(updatedAt).toISOString()}
           className="hidden shrink-0 tabular-nums text-muted-foreground sm:inline"
         >
-          {relativeTime(task.updatedAt)}
+          {relativeTime(updatedAt)}
         </time>
       </Link>
     </li>

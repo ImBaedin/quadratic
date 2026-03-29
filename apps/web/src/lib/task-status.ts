@@ -1,4 +1,4 @@
-import type { TaskStatus } from "./mock-data";
+import type { TaskStatus } from "./task-types";
 
 export interface TaskStatusConfig {
   label: string;

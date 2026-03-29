@@ -150,10 +150,12 @@ export const listForWorkspace = query({
     v.object({
       taskId: v.id("tasks"),
       repositoryId: v.id("repositories"),
+      repositoryFullName: v.string(),
       branch: v.string(),
       title: v.string(),
       status: taskStatusValidator,
       phase: taskPhaseValidator,
+      createdAt: v.number(),
       latestSummary: v.optional(v.string()),
       latestError: v.optional(v.string()),
       readyForExecutionAt: v.optional(v.number()),
@@ -167,19 +169,31 @@ export const listForWorkspace = query({
       workosUserId: args.workosUserId,
     });
 
-    const tasks = await ctx.db
-      .query("tasks")
-      .withIndex("by_workspace", (query) => query.eq("workspaceId", args.workspaceId))
-      .order("desc")
-      .take(100);
+    const [tasks, repositories] = await Promise.all([
+      ctx.db
+        .query("tasks")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", args.workspaceId))
+        .order("desc")
+        .take(100),
+      ctx.db
+        .query("repositories")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", args.workspaceId))
+        .collect(),
+    ]);
+
+    const repositoriesById = new Map(
+      repositories.map((repository) => [repository._id, repository.fullName] as const),
+    );
 
     return tasks.map((task) => ({
       taskId: task._id,
       repositoryId: task.repositoryId,
+      repositoryFullName: repositoriesById.get(task.repositoryId) ?? "Unknown repository",
       branch: task.branch,
       title: task.title,
       status: task.status,
       phase: task.phase,
+      createdAt: task._creationTime,
       latestSummary: task.latestSummary,
       latestError: task.latestError,
       readyForExecutionAt: task.readyForExecutionAt,
@@ -199,12 +213,14 @@ export const get = query({
       taskId: v.id("tasks"),
       workspaceId: v.id("workspaces"),
       repositoryId: v.id("repositories"),
+      repositoryFullName: v.string(),
       branch: v.string(),
       title: v.string(),
       rawPrompt: v.string(),
       normalizedPrompt: v.optional(v.string()),
       status: taskStatusValidator,
       phase: taskPhaseValidator,
+      createdAt: v.number(),
       plan: v.optional(v.string()),
       acceptanceCriteria: v.optional(v.array(v.string())),
       suggestedFiles: v.optional(v.array(suggestedFileValidator)),
@@ -229,7 +245,8 @@ export const get = query({
       workosUserId: args.workosUserId,
     });
 
-    const [questions, runs] = await Promise.all([
+    const [repository, questions, runs] = await Promise.all([
+      ctx.db.get(task.repositoryId),
       ctx.db
         .query("taskQuestions")
         .withIndex("by_task", (query) => query.eq("taskId", args.taskId))
@@ -245,12 +262,14 @@ export const get = query({
       taskId: task._id,
       workspaceId: task.workspaceId,
       repositoryId: task.repositoryId,
+      repositoryFullName: repository?.fullName ?? "Unknown repository",
       branch: task.branch,
       title: task.title,
       rawPrompt: task.rawPrompt,
       normalizedPrompt: task.normalizedPrompt,
       status: task.status,
       phase: task.phase,
+      createdAt: task._creationTime,
       plan: task.plan,
       acceptanceCriteria: task.acceptanceCriteria,
       suggestedFiles: task.suggestedFiles,

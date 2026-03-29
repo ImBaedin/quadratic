@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
 } from "@quadratic/ui/components/dialog";
 import {
   Drawer,
@@ -26,61 +25,46 @@ import {
   SelectValue,
 } from "@quadratic/ui/components/select";
 import { Textarea } from "@quadratic/ui/components/textarea";
-import type { MockRepo, MockTask, TaskStatus } from "@/lib/mock-data";
+import type { TaskRepositoryOption } from "@/lib/task-types";
 
 interface TaskCreationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  repos: MockRepo[];
-  onSubmit: (task: MockTask) => void;
-}
-
-function generateId() {
-  return `task-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .split(" ")
-    .slice(0, 8)
-    .join(" ");
+  repos: TaskRepositoryOption[];
+  onSubmit: (task: {
+    repositoryId: string;
+    branch: string;
+    prompt: string;
+  }) => Promise<void> | void;
+  submitting?: boolean;
 }
 
 interface FormProps {
-  repos: MockRepo[];
-  onSubmit: (task: MockTask) => void;
+  repos: TaskRepositoryOption[];
+  onSubmit: (task: {
+    repositoryId: string;
+    branch: string;
+    prompt: string;
+  }) => Promise<void> | void;
   onCancel: () => void;
+  submitting: boolean;
 }
 
-function TaskCreationForm({ repos, onSubmit, onCancel }: FormProps) {
-  const [repoId, setRepoId] = useState(repos[0]?.repoId ?? "");
+function TaskCreationForm({ repos, onSubmit, onCancel, submitting }: FormProps) {
+  const [repoId, setRepoId] = useState(repos[0]?.repositoryId ?? "");
   const [description, setDescription] = useState("");
+  const selectedRepoId = repoId || repos[0]?.repositoryId || "";
+  const selectedRepo = repos.find((repo) => repo.repositoryId === selectedRepoId) ?? repos[0];
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!description.trim()) return;
+    if (!description.trim() || !selectedRepo) return;
 
-    const repo = repos.find((r) => r.repoId === repoId) ?? repos[0];
-    const title = slugify(description) || "New task";
-    const titleFormatted =
-      title.charAt(0).toUpperCase() + title.slice(1);
-
-    const newTask: MockTask = {
-      taskId: generateId(),
-      title: titleFormatted,
-      description: description.trim(),
-      status: "drafting" as TaskStatus,
-      repoId: repo.repoId,
-      repoName: repo.fullName,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    onSubmit(newTask);
+    await onSubmit({
+      repositoryId: selectedRepo.repositoryId,
+      branch: selectedRepo.defaultBranch,
+      prompt: description.trim(),
+    });
     setDescription("");
   }
 
@@ -88,13 +72,13 @@ function TaskCreationForm({ repos, onSubmit, onCancel }: FormProps) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-foreground">Repository</label>
-        <Select value={repoId} onValueChange={setRepoId}>
+        <Select value={selectedRepoId} onValueChange={(value) => setRepoId(value ?? "")}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a repository" />
           </SelectTrigger>
           <SelectContent>
             {repos.map((repo) => (
-              <SelectItem key={repo.repoId} value={repo.repoId}>
+              <SelectItem key={repo.repositoryId} value={repo.repositoryId}>
                 {repo.fullName}
               </SelectItem>
             ))}
@@ -110,6 +94,7 @@ function TaskCreationForm({ repos, onSubmit, onCancel }: FormProps) {
           required
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          disabled={submitting}
           placeholder="Describe what you want the agent to do..."
           rows={5}
           className="resize-none"
@@ -117,11 +102,11 @@ function TaskCreationForm({ repos, onSubmit, onCancel }: FormProps) {
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={!description.trim()}>
-          Create task
+        <Button type="submit" size="sm" disabled={!description.trim() || !selectedRepo || submitting}>
+          {submitting ? "Creating..." : "Create task"}
         </Button>
       </div>
     </form>
@@ -133,11 +118,16 @@ export function TaskCreationDialog({
   onOpenChange,
   repos,
   onSubmit,
+  submitting = false,
 }: TaskCreationDialogProps) {
   const isMobile = useIsMobile();
 
-  function handleSubmit(task: MockTask) {
-    onSubmit(task);
+  async function handleSubmit(task: {
+    repositoryId: string;
+    branch: string;
+    prompt: string;
+  }) {
+    await onSubmit(task);
     onOpenChange(false);
   }
 
@@ -153,6 +143,7 @@ export function TaskCreationDialog({
               repos={repos}
               onSubmit={handleSubmit}
               onCancel={() => onOpenChange(false)}
+              submitting={submitting}
             />
           </div>
           <DrawerFooter />
@@ -171,6 +162,7 @@ export function TaskCreationDialog({
           repos={repos}
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}
+          submitting={submitting}
         />
         <DialogFooter />
       </DialogContent>
