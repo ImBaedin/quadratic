@@ -56,10 +56,16 @@ async function postToRepoActions(path: string, payload: unknown) {
   });
 
   if (!response.ok) {
-    throw new Error(`Repository actions service failed with status ${response.status}`);
+    const responseText = await response.text();
+    const trimmed = responseText.trim();
+    throw new Error(
+      trimmed.length > 0
+        ? `Repository actions service failed with status ${response.status}: ${trimmed}`
+        : `Repository actions service failed with status ${response.status}`,
+    );
   }
 
-  return await response.json();
+  return JSON.parse(await response.text());
 }
 
 export const dispatchTaskPlanning = internalAction({

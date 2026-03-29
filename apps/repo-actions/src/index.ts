@@ -13,7 +13,7 @@ import { basename, dirname, join, normalize, relative } from "node:path";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 
-import { toolDefinition } from "@tanstack/ai";
+import { chat, maxIterations, toolDefinition } from "@tanstack/ai";
 import { openRouterText } from "@tanstack/ai-openrouter";
 import { z } from "zod";
 import {
@@ -161,21 +161,29 @@ async function handleTaskPlanning(request: Request) {
       },
       async (repositoryRoot) => {
         const logger = new InMemoryRunLogger(payload.runId);
-        const runtime = await runRepositoryAgent({
+        const planning = await chat({
           adapter: openRouterText(repositoryModelId),
-          repositoryFullName: payload.repositoryFullName,
-          branch: payload.branch,
-          workingDirectory: repositoryRoot,
-          task: buildPlanningTask(metadata.prompt, payload.repositoryFullName, payload.branch),
-          extraInstructions: [
-            "You are planning repository work, not implementing it.",
-            "Inspect the checked out repository with the available tools before writing the plan.",
-            "Use read-only tools only. Do not propose files that you have not validated as plausible targets.",
-            "Return only valid JSON matching the requested schema.",
+          messages: [
+            {
+              role: "user",
+              content: buildPlanningTask(metadata.prompt, payload.repositoryFullName, payload.branch),
+            },
           ],
-          logger,
-          maxIterations: 12,
+          systemPrompts: [
+            [
+              "You are the repository planning runtime for Quadratic.",
+              "Inspect the checked out repository and produce a concrete implementation plan.",
+              "You are planning repository work, not implementing it.",
+              "Use read-only tools only.",
+              "Do not propose files that you have not validated as plausible targets.",
+              `Repository: ${payload.repositoryFullName}`,
+              `Branch: ${payload.branch}`,
+              `Working directory: ${repositoryRoot}`,
+            ].join("\n"),
+          ],
           tools: createRepositoryTools(repositoryRoot, { writable: false }),
+          outputSchema: aiPlanningResponseSchema,
+          agentLoopStrategy: maxIterations(12),
           modelOptions: {
             provider: {
               data_collection: "deny",
@@ -189,9 +197,11 @@ async function handleTaskPlanning(request: Request) {
           },
         });
 
-        const planning = parsePlanningResponse(runtime.outputText);
-
-        return taskPlanningResultSchema.parse({
+        await logger.log("Structured planning completed", {
+          repositoryFullName: payload.repositoryFullName,
+          branch: payload.branch,
+        });
+        const result = taskPlanningResultSchema.parse({
           taskId: payload.taskId,
           runId: payload.runId,
           status: "succeeded",
@@ -199,18 +209,19 @@ async function handleTaskPlanning(request: Request) {
           completedAt: new Date().toISOString(),
           draft: {
             ...planning.draft,
-            title: planning.draft.title.trim() || metadata.title?.trim() || buildTitle(
-              planning.draft.normalizedPrompt,
-              payload.repositoryFullName,
-            ),
+            title:
+              planning.draft.title.trim() ||
+              metadata.title?.trim() ||
+              buildTitle(planning.draft.normalizedPrompt, payload.repositoryFullName),
           },
           questions: planning.questions,
           summary: planning.summary,
           events: logger.events,
         });
+
+        return result;
       },
     );
-
     return json(result);
   } catch (error) {
     const result = taskPlanningResultSchema.parse({
@@ -242,6 +253,7 @@ async function handleRun(request: Request) {
       async (repositoryRoot) => {
         const logger = new InMemoryRunLogger(payload.runId);
         const runtime = await runRepositoryAgent({
+          adapter: openRouterText(repositoryModelId),
           repositoryFullName: payload.repositoryFullName,
           branch: payload.branch,
           workingDirectory: repositoryRoot,
@@ -256,7 +268,6 @@ async function handleRun(request: Request) {
           logger,
           maxIterations: 16,
           tools: createRepositoryTools(repositoryRoot, { writable: true }),
-          adapter: openRouterText(repositoryModelId),
           modelOptions: {
             provider: {
               data_collection: "deny",
@@ -723,22 +734,6 @@ function summarizeExecution(outputText: string, artifacts: RunArtifact[]) {
   return "Execution completed.";
 }
 
-function parsePlanningResponse(outputText: string) {
-  const trimmed = outputText.trim();
-  const candidate = trimmed.startsWith("```")
-    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
-    : trimmed;
-
-  try {
-    return aiPlanningResponseSchema.parse(JSON.parse(candidate));
-  } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? `Planning response was not valid JSON: ${error.message}`
-        : "Planning response was not valid JSON.",
-    );
-  }
-}
 
 class InMemoryRunLogger implements RunLogger {
   events: ExecutionEvent[] = [];
