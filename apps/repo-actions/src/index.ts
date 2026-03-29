@@ -67,6 +67,17 @@ const taskPlanningDraftSchema = z.object({
   ),
 });
 
+const taskPlanningQuestionSchema = z.object({
+  key: z.string().min(1),
+  question: z.string().min(1),
+});
+
+const aiPlanningResponseSchema = z.object({
+  draft: taskPlanningDraftSchema,
+  questions: z.array(taskPlanningQuestionSchema).max(3).default([]),
+  summary: z.string().min(1),
+});
+
 type RepoMetadata = {
   installationToken: string;
   prompt?: string;
@@ -76,12 +87,6 @@ type RepoMetadata = {
   suggestedFiles?: Array<{ path: string; reason?: string }>;
   answeredQuestions?: Array<{ key: string; question: string; answer: string }>;
   taskId?: string;
-};
-
-type RepoSnapshot = {
-  repositoryRoot: string;
-  files: string[];
-  preview: Array<{ path: string; snippet: string }>;
 };
 
 type ExecutionEvent = {
@@ -162,43 +167,63 @@ async function handleTaskPlanning(request: Request) {
 
   try {
     const metadata = parseRepoMetadata(payload.metadata);
-    const snapshot = await withClonedRepository(
+    const result = await withClonedRepository(
       {
         repositoryFullName: payload.repositoryFullName,
         branch: payload.branch,
         installationToken: metadata.installationToken,
       },
-      async (repositoryRoot) => await inspectRepository(repositoryRoot),
-    );
-
-    const prompt = normalizePrompt(metadata.prompt);
-    const questions = buildQuestions(prompt, snapshot.files);
-    const result = taskPlanningResultSchema.parse({
-      taskId: payload.taskId,
-      runId: payload.runId,
-      status: "succeeded",
-      startedAt,
-      completedAt: new Date().toISOString(),
-      draft: taskPlanningDraftSchema.parse({
-        title: metadata.title?.trim() || buildTitle(prompt, payload.repositoryFullName),
-        normalizedPrompt: prompt,
-        plan: buildPlan(payload.repositoryFullName, payload.branch, snapshot),
-        acceptanceCriteria: buildAcceptanceCriteria(prompt, snapshot.files),
-        suggestedFiles: buildSuggestedFiles(snapshot.files),
-      }),
-      questions,
-      summary: `Inspected ${snapshot.files.length} files in ${payload.repositoryFullName}.`,
-      events: [
-        {
-          type: "planning.repository_scanned",
-          payload: {
+      async (repositoryRoot) => {
+        const logger = new InMemoryRunLogger(payload.runId);
+        const runtime = await runRepositoryAgent({
+          adapter: openRouterText(repositoryModelId),
+          repositoryFullName: payload.repositoryFullName,
+          branch: payload.branch,
+          workingDirectory: repositoryRoot,
+          task: buildPlanningTask(metadata.prompt, payload.repositoryFullName, payload.branch),
+          extraInstructions: [
+            "You are planning repository work, not implementing it.",
+            "Inspect the checked out repository with the available tools before writing the plan.",
+            "Use read-only tools only. Do not propose files that you have not validated as plausible targets.",
+            "Return only valid JSON matching the requested schema.",
+          ],
+          logger,
+          maxIterations: 12,
+          tools: createRepositoryTools(repositoryRoot, { writable: false }),
+          modelOptions: {
+            provider: {
+              data_collection: "deny",
+              sort: "throughput",
+            },
+          },
+          metadata: {
             repositoryFullName: payload.repositoryFullName,
             branch: payload.branch,
-            fileCount: snapshot.files.length,
+            taskId: payload.taskId,
           },
-        },
-      ],
-    });
+        });
+
+        const planning = parsePlanningResponse(runtime.outputText);
+
+        return taskPlanningResultSchema.parse({
+          taskId: payload.taskId,
+          runId: payload.runId,
+          status: "succeeded",
+          startedAt,
+          completedAt: new Date().toISOString(),
+          draft: {
+            ...planning.draft,
+            title: planning.draft.title.trim() || metadata.title?.trim() || buildTitle(
+              planning.draft.normalizedPrompt,
+              payload.repositoryFullName,
+            ),
+          },
+          questions: planning.questions,
+          summary: planning.summary,
+          events: logger.events,
+        });
+      },
+    );
 
     return json(result);
   } catch (error) {
@@ -244,7 +269,7 @@ async function handleRun(request: Request) {
           ],
           logger,
           maxIterations: 16,
-          tools: createRepositoryTools(repositoryRoot),
+          tools: createRepositoryTools(repositoryRoot, { writable: true }),
           adapter: openRouterText(repositoryModelId),
           modelOptions: {
             provider: {
@@ -348,56 +373,38 @@ function buildTitle(prompt: string, repositoryFullName: string) {
   return `${shortened} (${basename(repositoryFullName)})`;
 }
 
-function buildPlan(repositoryFullName: string, branch: string, snapshot: RepoSnapshot) {
-  const lines = [
+function buildPlanningTask(
+  prompt: string | undefined,
+  repositoryFullName: string,
+  branch: string,
+) {
+  return [
     `Repository: ${repositoryFullName}`,
     `Branch: ${branch}`,
-    `Repository sample: ${snapshot.files.slice(0, 8).join(", ") || "No files detected"}`,
     "",
-    "Proposed approach:",
-    "1. Confirm the existing implementation boundaries in the files above.",
-    "2. Make the smallest change that satisfies the prompt.",
-    "3. Validate the affected code paths with focused checks before shipping.",
-  ];
-
-  return lines.join("\n");
-}
-
-function buildAcceptanceCriteria(prompt: string, files: string[]) {
-  return [
-    `The repository changes clearly address: ${prompt}`,
-    files.length > 0
-      ? `The implementation is consistent with the existing patterns in ${files[0]}.`
-      : "The implementation identifies the correct file targets before editing.",
-    "Any touched behavior has a focused verification step or test plan.",
-  ];
-}
-
-function buildSuggestedFiles(files: string[]) {
-  return files.slice(0, 6).map((path) => ({
-    path,
-    reason: "Likely relevant based on shallow repository inspection.",
-  }));
-}
-
-function buildQuestions(prompt: string, files: string[]) {
-  const questions: Array<{ key: string; question: string }> = [];
-
-  if (!/\b(test|spec|coverage|verify|validation)\b/i.test(prompt)) {
-    questions.push({
-      key: "testing-scope",
-      question: "Should this change include new or updated automated tests?",
-    });
-  }
-
-  if (files.length === 0) {
-    questions.push({
-      key: "repo-shape",
-      question: "The repository scan returned no useful files. Is the target branch correct?",
-    });
-  }
-
-  return questions.slice(0, 2);
+    `User request: ${normalizePrompt(prompt)}`,
+    "",
+    "Inspect the repository and produce a concrete implementation plan.",
+    "Return JSON with this exact shape:",
+    "{",
+    '  "draft": {',
+    '    "title": string,',
+    '    "normalizedPrompt": string,',
+    '    "plan": string,',
+    '    "acceptanceCriteria": string[],',
+    '    "suggestedFiles": [{ "path": string, "reason"?: string }]',
+    "  },",
+    '  "questions": [{ "key": string, "question": string }],',
+    '  "summary": string',
+    "}",
+    "",
+    "Requirements:",
+    "- The plan must be specific to the actual repository structure you inspected.",
+    "- Keep suggested files to the most relevant 3-8 paths.",
+    "- Only ask clarification questions if they are blocking or materially affect implementation.",
+    "- If the request is actionable with current context, return an empty questions array.",
+    "- Do not wrap the JSON in markdown fences.",
+  ].join("\n");
 }
 
 function buildExecutionTask(
@@ -455,22 +462,6 @@ async function withClonedRepository<T>(
   } finally {
     await rm(repositoryRoot, { recursive: true, force: true });
   }
-}
-
-async function inspectRepository(repositoryRoot: string): Promise<RepoSnapshot> {
-  const files = await listFiles(repositoryRoot, repositoryRoot);
-  const preview = await Promise.all(
-    files.slice(0, 5).map(async (path) => ({
-      path,
-      snippet: await readSnippet(join(repositoryRoot, path)),
-    })),
-  );
-
-  return {
-    repositoryRoot,
-    files: files.slice(0, 50),
-    preview,
-  };
 }
 
 async function cloneRepository(args: {
@@ -542,12 +533,10 @@ async function listFiles(root: string, directory: string): Promise<string[]> {
   return files.sort();
 }
 
-async function readSnippet(path: string) {
-  const contents = await readFile(path, "utf8");
-  return contents.slice(0, 400).trim();
-}
-
-function createRepositoryTools(repositoryRoot: string) {
+function createRepositoryTools(
+  repositoryRoot: string,
+  options: { writable: boolean },
+) {
   const listFilesTool = toolDefinition({
     name: "list_files",
     description: "List repository files. Use this before reading or editing unfamiliar areas.",
@@ -595,6 +584,25 @@ function createRepositoryTools(repositoryRoot: string) {
     };
   });
 
+  const runCommandTool = toolDefinition({
+    name: "run_command",
+    description:
+      "Run a shell command inside the repository root. Use this for ripgrep, tests, formatting, and git inspection.",
+    inputSchema: z.object({
+      command: z.string().min(1),
+      timeoutMs: z.number().int().min(1000).max(120000).optional(),
+    }),
+    outputSchema: z.object({
+      exitCode: z.number().int(),
+      stdout: z.string(),
+      stderr: z.string(),
+    }),
+  }).server(async ({ command, timeoutMs }) => await runShellCommand(repositoryRoot, command, timeoutMs));
+
+  if (!options.writable) {
+    return [listFilesTool, readFileTool, runCommandTool];
+  }
+
   const writeFileTool = toolDefinition({
     name: "write_file",
     description: "Write a full file in the repository. Use after reading the current file content.",
@@ -616,21 +624,6 @@ function createRepositoryTools(repositoryRoot: string) {
       bytesWritten: Buffer.byteLength(content, "utf8"),
     };
   });
-
-  const runCommandTool = toolDefinition({
-    name: "run_command",
-    description:
-      "Run a shell command inside the repository root. Use this for ripgrep, tests, formatting, and git inspection.",
-    inputSchema: z.object({
-      command: z.string().min(1),
-      timeoutMs: z.number().int().min(1000).max(120000).optional(),
-    }),
-    outputSchema: z.object({
-      exitCode: z.number().int(),
-      stdout: z.string(),
-      stderr: z.string(),
-    }),
-  }).server(async ({ command, timeoutMs }) => await runShellCommand(repositoryRoot, command, timeoutMs));
 
   return [listFilesTool, readFileTool, writeFileTool, runCommandTool];
 }
@@ -742,6 +735,23 @@ function summarizeExecution(outputText: string, artifacts: RunArtifact[]) {
   }
 
   return "Execution completed.";
+}
+
+function parsePlanningResponse(outputText: string) {
+  const trimmed = outputText.trim();
+  const candidate = trimmed.startsWith("```")
+    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
+    : trimmed;
+
+  try {
+    return aiPlanningResponseSchema.parse(JSON.parse(candidate));
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? `Planning response was not valid JSON: ${error.message}`
+        : "Planning response was not valid JSON.",
+    );
+  }
 }
 
 class InMemoryRunLogger implements RunLogger {
