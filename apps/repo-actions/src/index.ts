@@ -13,21 +13,25 @@ import { basename, dirname, join, normalize, relative } from "node:path";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 
+import { toolDefinition } from "@tanstack/ai";
 import { openRouterText } from "@tanstack/ai-openrouter";
+import { z } from "zod";
 import {
   repositoryExecutionRequestSchema,
   repositoryExecutionResultSchema,
   runArtifactSchema,
+  taskPlanningDraftSchema,
+  taskPlanningQuestionSchema,
   taskPlanningRequestSchema,
   taskPlanningResultSchema,
-  toolDefinition,
-  runRepositoryAgent,
   type RunArtifact,
+} from "./schemas";
+import {
+  runRepositoryAgent,
   type RunLogger,
   type ToolCall,
   type ToolResult,
-} from "@quadratic/agent-runtime";
-import { z } from "zod";
+} from "./runtime";
 
 const port = Number(process.env.PORT ?? "8080");
 const serviceToken = process.env.SERVICE_TOKEN;
@@ -53,24 +57,6 @@ const ignoredDirectories = new Set([
   ".turbo",
   ".cache",
 ]);
-
-const taskPlanningDraftSchema = z.object({
-  title: z.string().min(1),
-  normalizedPrompt: z.string().min(1),
-  plan: z.string().min(1),
-  acceptanceCriteria: z.array(z.string().min(1)).min(1),
-  suggestedFiles: z.array(
-    z.object({
-      path: z.string().min(1),
-      reason: z.string().min(1).optional(),
-    }),
-  ),
-});
-
-const taskPlanningQuestionSchema = z.object({
-  key: z.string().min(1),
-  question: z.string().min(1),
-});
 
 const aiPlanningResponseSchema = z.object({
   draft: taskPlanningDraftSchema,

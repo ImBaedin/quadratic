@@ -8,7 +8,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@quadratic/agent-runtime": "workspace:*",
+    "@tanstack/ai": "^0.9.1",
     "@tanstack/ai-openrouter": "^0.6.8",
     "zod": "^4.1.13"
   },
