@@ -12,6 +12,7 @@ import { TaskList } from "../../../components/tasks/task-list";
 import {
   TaskCreationDialog,
   NewTaskButton,
+  type NewTaskPayload,
 } from "../../../components/tasks/task-creation-dialog";
 import type { TaskListItem, TaskRepositoryOption } from "../../../lib/task-types";
 import { useJson } from "../../../components/workspace/use-json";
@@ -25,10 +26,12 @@ function TasksPage() {
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
   const workspace = useJson<{
     workspace: { workspaceId: string; name: string };
     repositories: TaskRepositoryOption[];
   }>(`/api/platform/workspace?slug=${workspaceSlug}`);
+
   const tasks = useQuery(
     api.tasks.listForWorkspace,
     user?.id && workspace.data?.workspace.workspaceId
@@ -38,14 +41,10 @@ function TasksPage() {
         }
       : "skip",
   ) as TaskListItem[] | undefined;
-  const createTask = useMutation(api.tasks.create);
-  const requestPlanning = useMutation(api.tasks.requestPlanning);
 
-  async function handleNewTask(task: {
-    repositoryId: string;
-    branch: string;
-    prompt: string;
-  }) {
+  const createTask = useMutation(api.tasks.create);
+
+  async function handleNewTask(payload: NewTaskPayload) {
     if (!user?.id || !workspace.data?.workspace.workspaceId) {
       toast.error("Your session is still loading.");
       return;
@@ -53,17 +52,16 @@ function TasksPage() {
 
     try {
       setSubmitting(true);
-      const taskId = await createTask({
+      await createTask({
         workosUserId: user.id,
         workspaceId: workspace.data.workspace.workspaceId as Id<"workspaces">,
-        repositoryId: task.repositoryId as Id<"repositories">,
-        branch: task.branch,
-        prompt: task.prompt,
+        repositoryId: payload.repositoryId as Id<"repositories">,
+        branch: payload.branch,
+        prompt: payload.prompt,
+        title: payload.title,
+        taskKind: payload.taskKind,
       });
-      await requestPlanning({
-        workosUserId: user.id,
-        taskId,
-      });
+      toast.success("Task created.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create task.");
       throw error;
@@ -72,21 +70,21 @@ function TasksPage() {
     }
   }
 
+  const taskCount = tasks?.length ?? 0;
+
   return (
     <WorkspaceLayout
       workspaceSlug={workspaceSlug}
       workspaceName={workspace.data?.workspace.name}
-      breadcrumbs={[
-        { label: workspaceSlug },
-        { label: "Tasks" },
-      ]}
+      error={workspace.error}
+      breadcrumbs={[{ label: workspaceSlug }, { label: "Tasks" }]}
     >
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-lg font-semibold text-balance">Tasks</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground text-pretty">
-            {(tasks ?? []).length} {(tasks ?? []).length === 1 ? "task" : "tasks"}
+          <h1 className="text-sm font-semibold text-foreground text-balance">Tasks</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+            {taskCount} {taskCount === 1 ? "task" : "tasks"}
           </p>
         </div>
         <NewTaskButton onClick={() => setDialogOpen(true)} />
@@ -99,7 +97,7 @@ function TasksPage() {
         onNewTask={() => setDialogOpen(true)}
       />
 
-      {/* Creation dialog / drawer */}
+      {/* Creation dialog */}
       <TaskCreationDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

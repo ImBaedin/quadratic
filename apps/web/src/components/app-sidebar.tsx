@@ -1,10 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import {
-  CheckSquare,
-  GitBranch,
-  Gear,
-  CaretUpDown,
-} from "@phosphor-icons/react";
+import { CheckSquare, GitBranch, Gear, CaretUpDown } from "@phosphor-icons/react";
 
 import {
   Sidebar,
@@ -63,9 +58,7 @@ export function AppSidebar({ workspaceSlug, workspaceName }: AppSidebarProps) {
                 <span className="truncate text-xs font-medium text-sidebar-foreground">
                   {workspaceName}
                 </span>
-                <span className="text-[0.6rem] text-sidebar-foreground/50">
-                  Workspace
-                </span>
+                <span className="text-[0.6rem] text-sidebar-foreground/50">Workspace</span>
               </div>
               <CaretUpDown className="ml-auto size-3.5 shrink-0 text-sidebar-foreground/40" />
             </SidebarMenuButton>
@@ -94,12 +87,7 @@ export function AppSidebar({ workspaceSlug, workspaceName }: AppSidebarProps) {
                       isActive={isActive}
                       tooltip={item.label}
                       render={
-                        <Link
-                          to={item.to}
-                          className={cn(
-                            "flex w-full items-center gap-2",
-                          )}
-                        />
+                        <Link to={item.to} className={cn("flex w-full items-center gap-2")} />
                       }
                     >
                       <item.icon

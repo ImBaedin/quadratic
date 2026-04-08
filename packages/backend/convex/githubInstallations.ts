@@ -84,7 +84,12 @@ export const upsertInstallation = internalMutation({
     githubAccountLogin: v.string(),
     githubAccountType: v.string(),
     installedByUserId: v.id("users"),
-    status: v.union(v.literal("pending"), v.literal("active"), v.literal("suspended"), v.literal("removed")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("suspended"),
+      v.literal("removed"),
+    ),
   },
   returns: v.id("githubInstallations"),
   handler: async (ctx, args) => {
@@ -111,7 +116,12 @@ export const connectWorkspaceInstallation = mutation({
     githubInstallationId: v.number(),
     githubAccountLogin: v.string(),
     githubAccountType: v.string(),
-    status: v.union(v.literal("pending"), v.literal("active"), v.literal("suspended"), v.literal("removed")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("suspended"),
+      v.literal("removed"),
+    ),
   },
   returns: v.id("githubInstallations"),
   handler: async (ctx, args) => {

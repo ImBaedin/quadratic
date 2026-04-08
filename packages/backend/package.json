@@ -13,6 +13,7 @@
     "@quadratic/github": "workspace:*",
     "convex": "catalog:",
     "dotenv": "catalog:",
+    "effect": "4.0.0-beta.43",
     "zod": "catalog:"
   },
   "devDependencies": {

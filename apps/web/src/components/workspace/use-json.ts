@@ -14,10 +14,19 @@ export function useJson<T>(url: string) {
   useEffect(() => {
     let cancelled = false;
 
-    void fetch(url)
+    void fetch(url, {
+      headers: {
+        accept: "application/json",
+      },
+    })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error(await response.text());
+          const body = (await response.text()).trim();
+          throw new Error(
+            body
+              ? `${response.status} ${response.statusText}: ${body}`
+              : `${response.status} ${response.statusText}`,
+          );
         }
         return (await response.json()) as T;
       })
@@ -28,7 +37,11 @@ export function useJson<T>(url: string) {
       })
       .catch((error: Error) => {
         if (!cancelled) {
-          setState({ data: null, error: error.message, loading: false });
+          const message =
+            error.message === "Failed to fetch"
+              ? `Request to ${url} failed before a response was received.`
+              : error.message;
+          setState({ data: null, error: `${url}: ${message}`, loading: false });
         }
       });
 

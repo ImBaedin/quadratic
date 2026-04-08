@@ -16,9 +16,7 @@ export const normalizedWorkosOrganizationSchema = z.object({
   slug: z.string().optional(),
 });
 
-export type NormalizedWorkosOrganization = z.infer<
-  typeof normalizedWorkosOrganizationSchema
->;
+export type NormalizedWorkosOrganization = z.infer<typeof normalizedWorkosOrganizationSchema>;
 
 export const normalizedWorkosMembershipSchema = z.object({
   id: z.string(),
@@ -28,9 +26,7 @@ export const normalizedWorkosMembershipSchema = z.object({
   status: z.string().optional(),
 });
 
-export type NormalizedWorkosMembership = z.infer<
-  typeof normalizedWorkosMembershipSchema
->;
+export type NormalizedWorkosMembership = z.infer<typeof normalizedWorkosMembershipSchema>;
 
 export const normalizedWorkosInvitationSchema = z.object({
   id: z.string(),
@@ -40,9 +36,7 @@ export const normalizedWorkosInvitationSchema = z.object({
   status: z.string(),
 });
 
-export type NormalizedWorkosInvitation = z.infer<
-  typeof normalizedWorkosInvitationSchema
->;
+export type NormalizedWorkosInvitation = z.infer<typeof normalizedWorkosInvitationSchema>;
 
 export function normalizeWorkosUser(input: unknown): NormalizedWorkosUser {
   const schema = z.object({
@@ -63,9 +57,7 @@ export function normalizeWorkosUser(input: unknown): NormalizedWorkosUser {
   });
 }
 
-export function normalizeWorkosOrganization(
-  input: unknown,
-): NormalizedWorkosOrganization {
+export function normalizeWorkosOrganization(input: unknown): NormalizedWorkosOrganization {
   const schema = z.object({
     id: z.string(),
     name: z.string(),

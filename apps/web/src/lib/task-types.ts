@@ -1,25 +1,33 @@
 export type TaskStatus =
-  | "drafting"
+  | "draft"
+  | "in_review"
   | "awaiting_clarification"
   | "ready"
-  | "executing"
+  | "in_progress"
   | "completed"
   | "failed"
   | "cancelled";
 
+export type TaskKind = "general" | "bug" | "feature" | "research" | "chore" | "breakdown";
+
+export type TaskPhase = "intake" | "planning" | "clarification" | "execution" | "delivery";
+
 export interface TaskListItem {
   taskId: string;
-  repositoryId: string;
+  repositoryId?: string;
   repositoryFullName: string;
-  branch: string;
+  branch?: string;
   title: string;
+  taskKind: TaskKind;
   status: TaskStatus;
-  phase: "intake" | "planning" | "clarification" | "execution" | "delivery";
+  phase: TaskPhase;
   createdAt: number;
   latestSummary?: string;
   latestError?: string;
-  readyForExecutionAt?: number;
   completedAt?: number;
+  pendingProposalCount?: number;
+  rawPrompt?: string;
+  parentTaskId?: string;
 }
 
 export interface TaskQuestion {
@@ -33,7 +41,14 @@ export interface TaskQuestion {
 
 export interface TaskRun {
   runId: string;
-  kind: "planning" | "clarification" | "execution";
+  runKind:
+    | "context_enrichment"
+    | "task_breakdown"
+    | "discussion_rereview"
+    | "repo_analysis"
+    | "repo_execution"
+    | "repository_sync"
+    | "repository_explore";
   status:
     | "queued"
     | "requested"
@@ -51,6 +66,21 @@ export interface TaskRun {
   summary?: string;
   error?: string;
   events: TaskRunEvent[];
+  artifacts?: Array<{
+    artifactId?: string;
+    kind: string;
+    key: string;
+    label?: string;
+    contentType?: string;
+    url?: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    estimatedCostUsd?: number;
+  } | null;
 }
 
 export interface TaskRunEvent {
@@ -70,8 +100,9 @@ export interface TaskDetail {
   rawPrompt: string;
   normalizedPrompt?: string;
   status: TaskStatus;
-  phase: "intake" | "planning" | "clarification" | "execution" | "delivery";
+  phase: TaskPhase;
   createdAt: number;
+  completedAt?: number;
   plan?: string;
   acceptanceCriteria?: string[];
   suggestedFiles?: Array<{
@@ -81,10 +112,61 @@ export interface TaskDetail {
   latestSummary?: string;
   latestError?: string;
   activeRunId?: string;
-  planningRunId?: string;
-  executionRunId?: string;
+  latestVersionId?: string;
+  taskKind: TaskKind;
   questions: TaskQuestion[];
   runs: TaskRun[];
+  fieldValues?: Array<{
+    definitionId: string;
+    key: string;
+    label: string;
+    description?: string;
+    valueKind: string;
+    visibility: string;
+    aiBehavior: string;
+    promptHint?: string;
+    value?: unknown;
+  }>;
+  contextEntries?: Array<{
+    contextEntryId: string;
+    kind: string;
+    title?: string;
+    body: string;
+    metadata?: Record<string, unknown>;
+    createdAt?: number;
+  }>;
+  discussions?: Array<{
+    discussionId: string;
+    authorType: string;
+    body: string;
+    triggerRereview: boolean;
+    createdAt: number;
+  }>;
+  proposals?: Array<{
+    proposalId: string;
+    workflowKind: string;
+    status: string;
+    summary?: string;
+    rationale?: string;
+    items: Array<{
+      itemId: string;
+      itemType: string;
+      action: string;
+      label?: string;
+      fieldKey?: string;
+      status: string;
+      payload: Record<string, unknown>;
+      appliedEntityId?: string;
+    }>;
+  }>;
+  versions?: Array<{
+    versionId: string;
+    sourceType: string;
+    sourceId?: string;
+    summary?: string;
+    createdAt: number;
+    snapshot: Record<string, unknown>;
+  }>;
 }
 
 export interface TaskRepositoryOption {

@@ -22,9 +22,9 @@ function sign(value: string, secret: string): string {
 }
 
 export function encodeWorkosSession(session: WorkosSession, secret: string): string {
-  const payload = Buffer.from(
-    JSON.stringify(workosSessionSchema.parse(session)),
-  ).toString("base64url");
+  const payload = Buffer.from(JSON.stringify(workosSessionSchema.parse(session))).toString(
+    "base64url",
+  );
   return `${payload}.${sign(payload, secret)}`;
 }
 

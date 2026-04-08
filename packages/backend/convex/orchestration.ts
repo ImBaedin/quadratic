@@ -1,15 +1,12 @@
 "use node";
 
-import { api, internal } from "./_generated/api";
-import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import {
-  repositoryExecutionRequestSchema,
-  repositoryExecutionResultSchema,
-  taskPlanningRequestSchema,
-  taskPlanningResultSchema,
-} from "@quadratic/agent-runtime";
+
+import { runEnvelopeSchema, runResultSchema } from "@quadratic/agent-runtime";
 import { createInstallationAccessToken } from "@quadratic/github";
+
+import { internal } from "./_generated/api";
+import { internalAction } from "./_generated/server";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -68,226 +65,153 @@ async function postToRepoActions(path: string, payload: unknown) {
   return JSON.parse(await response.text());
 }
 
-export const dispatchTaskPlanning = internalAction({
+export const dispatchRun = internalAction({
   args: {
-    taskId: v.id("tasks"),
-    runId: v.id("taskRuns"),
+    runId: v.id("runs"),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     try {
-      const context = await ctx.runQuery(internal.tasks.getPlanningContext, {
-        taskId: args.taskId,
+      const context = await ctx.runQuery(internal.runs.getDispatchContext, {
+        runId: args.runId,
       });
 
-      await ctx.runMutation(internal.tasks.transitionRunStatus, {
+      await ctx.runMutation(internal.runs.transitionStatus, {
         runId: args.runId,
         status: "launching",
-        summary: "Dispatching planning request.",
+        summary: "Dispatching run to repository worker.",
       });
 
-      const githubToken = await createGitHubToken(context.repository.githubInstallationId);
-      const request = taskPlanningRequestSchema.parse({
-        taskId: String(context.taskId),
-        runId: String(args.runId),
-        workspaceId: String(context.workspaceId),
-        repositoryId: String(context.repositoryId),
-        githubInstallationId: String(context.repository.githubInstallationId),
-        repositoryFullName: context.repository.fullName,
-        branch: context.branch,
-        requestedAt: new Date().toISOString(),
-        metadata: {
-          installationToken: githubToken,
-          prompt: context.normalizedPrompt ?? context.rawPrompt,
-          title: context.draft.title,
-          existingQuestions: context.questions,
-          existingDraft: context.draft,
-          repository: context.repository,
-        },
-      });
+      let taskSnapshot: unknown;
+      let repository = context.repository ?? undefined;
 
-      await ctx.runMutation(internal.tasks.transitionRunStatus, {
-        runId: args.runId,
-        status: "running",
-        summary: "Planning request is running.",
-      });
+      if (context.targetType === "task" && context.targetTaskId) {
+        taskSnapshot = await ctx.runQuery(internal.tasks.getAutomationContext, {
+          taskId: context.targetTaskId,
+        });
 
-      const json = await postToRepoActions("/tasks/planning", request);
-      const result = taskPlanningResultSchema.parse(json);
-
-      if (result.taskId !== request.taskId || result.runId !== request.runId) {
-        throw new Error("Repository actions service returned mismatched task planning identifiers.");
+        if (
+          !repository &&
+          taskSnapshot &&
+          typeof taskSnapshot === "object" &&
+          taskSnapshot !== null
+        ) {
+          repository =
+            "repository" in taskSnapshot
+              ? (taskSnapshot.repository as typeof repository)
+              : repository;
+        }
       }
 
-      await ctx.runMutation(api.tasks.reportPlanningResult, {
-        taskId: args.taskId,
-        runId: args.runId,
-        status: result.status,
-        draft: result.draft,
-        questions: result.questions,
-        summary: result.summary,
-        error: result.error,
-        events: result.events,
-      });
-    } catch (error) {
-      await ctx.runMutation(api.tasks.reportPlanningResult, {
-        taskId: args.taskId,
-        runId: args.runId,
-        status: "failed",
-        error: error instanceof Error ? error.message : "Task planning failed.",
-        summary: "Planning dispatch failed.",
-      });
-    }
+      const installationToken =
+        repository?.githubInstallationId !== undefined
+          ? await createGitHubToken(repository.githubInstallationId)
+          : undefined;
 
-    return null;
-  },
-});
-
-export const dispatchAgentRun = internalAction({
-  args: {
-    runId: v.id("agentRuns"),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    try {
-      const context = await ctx.runQuery(internal.agentRuns.getDispatchContext, {
-        runId: args.runId,
-      });
-      if (!context) {
-        throw new Error("Agent run not found.");
-      }
-
-      await ctx.runMutation(internal.agentRuns.transitionStatus, {
-        runId: args.runId,
-        status: "launching",
-        summary: "Dispatching repository action.",
-      });
-
-      const githubToken = await createGitHubToken(context.repository.githubInstallationId);
-      const request = repositoryExecutionRequestSchema.parse({
-        runId: String(context.runId),
+      const request = runEnvelopeSchema.parse({
+        runId: String(context._id ?? args.runId),
         workspaceId: String(context.workspaceId),
-        repositoryId: String(context.repositoryId),
-        githubInstallationId: String(context.repository.githubInstallationId),
-        repositoryFullName: context.repository.fullName,
+        targetType: context.targetType,
+        targetTaskId: context.targetTaskId ? String(context.targetTaskId) : undefined,
+        targetRepositoryId: context.targetRepositoryId
+          ? String(context.targetRepositoryId)
+          : undefined,
         branch: context.branch,
-        kind: context.kind as "repository_sync" | "repository_explore" | "agent_tool",
+        runKind: context.runKind,
         requestedAt: new Date().toISOString(),
+        provider: context.provider ?? "openrouter",
+        model: context.model ?? "openai/gpt-5.4-nano",
+        promptTemplateVersion: context.promptTemplateVersion ?? "planner-first-v1",
+        toolsetVersion: context.toolsetVersion ?? "planner-first-v1",
+        effectWorkflowKey: context.effectWorkflowKey ?? context.runKind,
         metadata: {
-          installationToken: githubToken,
-          repository: context.repository,
+          installationToken,
         },
+        task: taskSnapshot ?? undefined,
+        repository: repository
+          ? {
+              repositoryId: String(repository.repositoryId),
+              fullName: repository.fullName,
+              owner: repository.owner,
+              name: repository.name,
+              defaultBranch: repository.defaultBranch,
+              selected: repository.selected,
+              archived: repository.archived,
+              githubInstallationId: repository.githubInstallationId,
+            }
+          : undefined,
       });
 
-      await ctx.runMutation(internal.agentRuns.transitionStatus, {
+      await ctx.runMutation(internal.runs.transitionStatus, {
         runId: args.runId,
         status: "running",
-        summary: "Repository action is running.",
+        summary: "Worker run is active.",
       });
 
-      const json = await postToRepoActions("/runs", request);
-      const result = repositoryExecutionResultSchema.parse(json);
+      const json = await postToRepoActions("/runs/execute", request);
+      const result = runResultSchema.parse(json);
 
       if (result.runId !== request.runId) {
         throw new Error("Repository actions service returned a mismatched run identifier.");
       }
 
-      await ctx.runMutation(api.agentRuns.reportResult, {
+      await ctx.runMutation(internal.runs.persistWorkerResult, {
         runId: args.runId,
         status: result.status,
         summary: result.summary,
         error: result.error,
-        events: result.events,
+        events: result.events.map((event) => ({
+          type: event.type,
+          sequence: event.sequence,
+          payload: event.payload,
+          timestamp: event.timestamp,
+        })),
+        artifacts: result.artifacts.map((artifact) => ({
+          kind: artifact.kind,
+          key: artifact.key,
+          label: artifact.label,
+          contentType: artifact.contentType,
+          url: artifact.url,
+          metadata: artifact.metadata,
+        })),
+        usage: result.usage
+          ? {
+              provider: result.usage.provider,
+              model: result.usage.model,
+              inputTokens: result.usage.inputTokens,
+              outputTokens: result.usage.outputTokens,
+              totalTokens: result.usage.totalTokens,
+              estimatedCostUsd: result.usage.estimatedCostUsd,
+            }
+          : undefined,
+        proposal: result.proposal
+          ? {
+              workflowKind: result.proposal.workflowKind,
+              summary: result.proposal.summary,
+              rationale: result.proposal.rationale,
+              items: result.proposal.items.map((item) => ({
+                itemType: item.itemType,
+                action: item.action,
+                label: item.label,
+                fieldKey: item.fieldKey,
+                payload: item.payload,
+              })),
+            }
+          : undefined,
+        execution: result.execution
+          ? {
+              status: result.execution.status,
+              summary: result.execution.summary,
+              error: result.execution.error,
+            }
+          : undefined,
       });
     } catch (error) {
-      await ctx.runMutation(api.agentRuns.reportResult, {
+      await ctx.runMutation(internal.runs.persistWorkerResult, {
         runId: args.runId,
         status: "failed",
-        error: error instanceof Error ? error.message : "Repository action failed.",
-        summary: "Repository action dispatch failed.",
-      });
-    }
-
-    return null;
-  },
-});
-
-export const dispatchTaskExecution = internalAction({
-  args: {
-    taskId: v.id("tasks"),
-    runId: v.id("taskRuns"),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    try {
-      const context = await ctx.runQuery(internal.tasks.getExecutionContext, {
-        taskId: args.taskId,
-        runId: args.runId,
-      });
-
-      await ctx.runMutation(internal.tasks.transitionRunStatus, {
-        runId: args.runId,
-        status: "launching",
-        summary: "Dispatching task execution.",
-      });
-
-      const githubToken = await createGitHubToken(context.repository.githubInstallationId);
-      const request = repositoryExecutionRequestSchema.parse({
-        runId: String(context.runId),
-        workspaceId: String(context.workspaceId),
-        repositoryId: String(context.repositoryId),
-        githubInstallationId: String(context.repository.githubInstallationId),
-        repositoryFullName: context.repository.fullName,
-        branch: context.branch,
-        kind: "agent_tool",
-        requestedAt: new Date().toISOString(),
-        metadata: {
-          installationToken: githubToken,
-          taskId: String(context.taskId),
-          title: context.title,
-          prompt: context.normalizedPrompt ?? context.rawPrompt,
-          plan: context.plan,
-          acceptanceCriteria: context.acceptanceCriteria ?? [],
-          suggestedFiles: context.suggestedFiles ?? [],
-          answeredQuestions: context.questions
-            .filter((question) => question.answer)
-            .map((question) => ({
-              key: question.key,
-              question: question.question,
-              answer: question.answer,
-            })),
-          repository: context.repository,
-        },
-      });
-
-      await ctx.runMutation(internal.tasks.transitionRunStatus, {
-        runId: args.runId,
-        status: "running",
-        summary: "Task execution is running.",
-      });
-
-      const json = await postToRepoActions("/runs", request);
-      const result = repositoryExecutionResultSchema.parse(json);
-
-      if (result.runId !== request.runId) {
-        throw new Error("Repository actions service returned a mismatched execution run identifier.");
-      }
-
-      await ctx.runMutation(api.tasks.reportExecutionResult, {
-        taskId: args.taskId,
-        runId: args.runId,
-        status: result.status,
-        summary: result.summary,
-        error: result.error,
-        events: result.events,
-      });
-    } catch (error) {
-      await ctx.runMutation(api.tasks.reportExecutionResult, {
-        taskId: args.taskId,
-        runId: args.runId,
-        status: "failed",
-        error: error instanceof Error ? error.message : "Task execution failed.",
-        summary: "Task execution dispatch failed.",
+        error: error instanceof Error ? error.message : "Run dispatch failed.",
+        summary: "Worker dispatch failed.",
       });
     }
 

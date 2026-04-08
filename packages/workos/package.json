@@ -18,8 +18,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^24.3.0",
     "@quadratic/config": "workspace:*",
+    "@types/node": "^24.3.0",
     "typescript": "^5"
   }
 }

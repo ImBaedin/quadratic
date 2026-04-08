@@ -32,7 +32,9 @@ export const listForCurrentUser = query({
       .withIndex("by_user", (query) => query.eq("userId", user._id))
       .collect();
 
-    const workspaces = await Promise.all(memberships.map((membership) => ctx.db.get(membership.workspaceId)));
+    const workspaces = await Promise.all(
+      memberships.map((membership) => ctx.db.get(membership.workspaceId)),
+    );
 
     return memberships.flatMap((membership, index) => {
       const workspace = workspaces[index];
@@ -96,6 +98,14 @@ export const create = mutation({
       userId: user._id,
       role: "owner",
       joinedAt: Date.now(),
+    });
+
+    await ctx.db.insert("workspaceAiPolicies", {
+      workspaceId,
+      enabled: true,
+      hardLimitTokens: 250_000,
+      reserveTokensPerRun: 20_000,
+      defaultModel: "openai/gpt-5.4-nano",
     });
 
     return { workspaceId, slug };

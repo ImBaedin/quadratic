@@ -124,7 +124,9 @@ export const syncRepositories = internalMutation({
       .withIndex("by_workspace", (query) => query.eq("workspaceId", args.workspaceId))
       .collect();
 
-    const existingByRepoId = new Map(existing.map((repository) => [repository.githubRepoId, repository]));
+    const existingByRepoId = new Map(
+      existing.map((repository) => [repository.githubRepoId, repository]),
+    );
 
     await Promise.all(
       args.repositories.map(async (repository) => {
@@ -191,7 +193,9 @@ export const refreshFromGitHub = mutation({
       .withIndex("by_workspace", (query) => query.eq("workspaceId", args.workspaceId))
       .collect();
 
-    const existingByRepoId = new Map(existing.map((repository) => [repository.githubRepoId, repository]));
+    const existingByRepoId = new Map(
+      existing.map((repository) => [repository.githubRepoId, repository]),
+    );
 
     await Promise.all(
       args.repositories.map(async (repository) => {

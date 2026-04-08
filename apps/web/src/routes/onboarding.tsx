@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@quadratic/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@quadratic/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@quadratic/ui/components/card";
 import { useJson } from "../components/workspace/use-json";
 
 export const Route = createFileRoute("/onboarding" as never)({
@@ -29,6 +35,12 @@ function OnboardingPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          {session.error ? (
+            <div className="sm:col-span-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              {session.error}
+            </div>
+          ) : null}
+
           {/* Create workspace */}
           <Card>
             <CardHeader>
@@ -49,7 +61,9 @@ function OnboardingPage() {
                   placeholder="Acme Engineering"
                   className="h-8 rounded-md border border-input bg-input/20 px-3 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-input/30"
                 />
-                <Button type="submit" size="sm">Create workspace</Button>
+                <Button type="submit" size="sm">
+                  Create workspace
+                </Button>
               </form>
             </CardContent>
           </Card>

@@ -45,12 +45,9 @@ describe("WorkOS session helpers", () => {
       "12345678901234567890123456789012",
     );
 
-    expect(
-      decodeWorkosSession(
-        cookie,
-        "12345678901234567890123456789012",
-      )?.userId,
-    ).toBe("user_123");
+    expect(decodeWorkosSession(cookie, "12345678901234567890123456789012")?.userId).toBe(
+      "user_123",
+    );
   });
 
   test("encodes auth state", () => {

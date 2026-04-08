@@ -43,7 +43,5 @@ export async function listInstallationRepositories(args: {
     fetchImpl: args.fetchImpl,
   });
 
-  return response.repositories.map((repository) =>
-    normalizeGitHubRepository(repository),
-  );
+  return response.repositories.map((repository) => normalizeGitHubRepository(repository));
 }

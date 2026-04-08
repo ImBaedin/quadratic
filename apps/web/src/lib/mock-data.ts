@@ -1,10 +1,11 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type TaskStatus =
-  | "drafting"
+  | "draft"
+  | "in_review"
   | "awaiting_clarification"
   | "ready"
-  | "executing"
+  | "in_progress"
   | "completed"
   | "failed"
   | "cancelled";
@@ -100,7 +101,7 @@ export const MOCK_TASKS: MockTask[] = [
     title: "Migrate dashboard charts to use the new data pipeline",
     description:
       "Charts in the dashboard are still using the old REST API. We need to migrate them to subscribe to the new streaming data pipeline.",
-    status: "executing",
+    status: "in_progress",
     repoId: "repo-2",
     repoName: "acme/frontend-app",
     createdAt: new Date(Date.now() - 1000 * 60 * 45),
@@ -132,7 +133,7 @@ export const MOCK_TASKS: MockTask[] = [
     title: "Set up E2E test suite for the checkout flow",
     description:
       "We have unit tests but no end-to-end tests for the checkout flow. Add Playwright tests covering happy path and edge cases.",
-    status: "drafting",
+    status: "draft",
     repoId: "repo-2",
     repoName: "acme/frontend-app",
     createdAt: new Date(Date.now() - 1000 * 60 * 10),

@@ -78,7 +78,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Figtree Variable', sans-serif;
+  --font-sans: "Figtree Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -117,7 +117,7 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --font-heading: 'Manrope Variable', sans-serif;
+  --font-heading: "Manrope Variable", sans-serif;
 }
 
 @layer base {

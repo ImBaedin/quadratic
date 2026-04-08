@@ -29,8 +29,8 @@ function HomePage() {
             Team onboarding around workspaces, GitHub installs, and ephemeral repo jobs.
           </h1>
           <p className="max-w-xl text-base text-zinc-400">
-            This scaffold keeps TanStack Start on Cloudflare, Convex as the orchestrator and system of
-            record, and Fly for external repository execution.
+            This scaffold keeps TanStack Start on Cloudflare, Convex as the orchestrator and system
+            of record, and Fly for external repository execution.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -55,7 +55,10 @@ function HomePage() {
             "Repository selection, default branch, and invite management",
             "Agent run lifecycle and Convex/Fly worker contracts",
           ].map((item) => (
-            <div key={item} className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 text-sm text-zinc-300">
+            <div
+              key={item}
+              className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 text-sm text-zinc-300"
+            >
               {item}
             </div>
           ))}

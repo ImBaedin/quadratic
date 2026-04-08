@@ -3,7 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { WorkspaceLayout } from "../../../components/workspace-layout";
 import { useJson } from "../../../components/workspace/use-json";
 import { Button } from "@quadratic/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@quadratic/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@quadratic/ui/components/card";
 
 export const Route = createFileRoute("/$workspaceSlug/settings/github" as never)({
   component: WorkspaceGitHubPage,
@@ -25,6 +31,7 @@ function WorkspaceGitHubPage() {
     <WorkspaceLayout
       workspaceSlug={workspaceSlug}
       workspaceName={workspace.data?.workspace.name}
+      error={workspace.error}
       breadcrumbs={[
         { label: workspaceSlug },
         { label: "Settings", href: `/${workspaceSlug}/settings` },
@@ -48,7 +55,10 @@ function WorkspaceGitHubPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button size="sm" render={<a href={`/api/github/install?workspaceSlug=${workspaceSlug}`} />}>
+            <Button
+              size="sm"
+              render={<a href={`/api/github/install?workspaceSlug=${workspaceSlug}`} />}
+            >
               Open GitHub installation flow
             </Button>
           </CardContent>
@@ -67,7 +77,9 @@ function WorkspaceGitHubPage() {
                   key={installation.installationId}
                   className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-xs"
                 >
-                  <span className="font-medium text-foreground">{installation.githubAccountLogin}</span>
+                  <span className="font-medium text-foreground">
+                    {installation.githubAccountLogin}
+                  </span>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <span>#{installation.githubInstallationId}</span>
                     <span className="rounded-full bg-muted px-2 py-0.5">{installation.status}</span>

@@ -4,10 +4,8 @@ import { z } from "zod";
 const runtimeEnv = {
   ...(((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ??
     {}) as Record<string, string | undefined>),
-  ...(((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {}) as Record<
-    string,
-    string | undefined
-  >),
+  ...(((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ??
+    {}) as Record<string, string | undefined>),
 };
 
 export const serverEnv = createEnv({

@@ -8,7 +8,7 @@
  * @module
  */
 
-import type * as agentRuns from "../agentRuns.js";
+import type * as automations from "../automations.js";
 import type * as githubInstallations from "../githubInstallations.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as internal_jobIngestion from "../internal/jobIngestion.js";
@@ -18,8 +18,11 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_roles from "../lib/roles.js";
 import type * as memberships from "../memberships.js";
 import type * as orchestration from "../orchestration.js";
+import type * as proposals from "../proposals.js";
 import type * as repositories from "../repositories.js";
+import type * as runs from "../runs.js";
 import type * as tasks from "../tasks.js";
+import type * as usage from "../usage.js";
 import type * as users from "../users.js";
 import type * as workspaces from "../workspaces.js";
 
@@ -30,7 +33,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  agentRuns: typeof agentRuns;
+  automations: typeof automations;
   githubInstallations: typeof githubInstallations;
   healthCheck: typeof healthCheck;
   "internal/jobIngestion": typeof internal_jobIngestion;
@@ -40,8 +43,11 @@ declare const fullApi: ApiFromModules<{
   "lib/roles": typeof lib_roles;
   memberships: typeof memberships;
   orchestration: typeof orchestration;
+  proposals: typeof proposals;
   repositories: typeof repositories;
+  runs: typeof runs;
   tasks: typeof tasks;
+  usage: typeof usage;
   users: typeof users;
   workspaces: typeof workspaces;
 }>;

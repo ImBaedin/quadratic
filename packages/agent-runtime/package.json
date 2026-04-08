@@ -9,7 +9,8 @@
     "./provider": "./src/provider.ts",
     "./repository": "./src/repository.ts",
     "./runtime": "./src/runtime.ts",
-    "./transitions": "./src/transitions.ts"
+    "./transitions": "./src/transitions.ts",
+    "./workflows": "./src/workflows.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",
@@ -17,11 +18,12 @@
   },
   "dependencies": {
     "@tanstack/ai": "^0.9.1",
+    "effect": "4.0.0-beta.43",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^24.3.0",
     "@quadratic/config": "workspace:*",
+    "@types/node": "^24.3.0",
     "typescript": "^5"
   }
 }

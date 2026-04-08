@@ -33,10 +33,7 @@ export function createGitHubAppJwt(
 }
 
 export async function createInstallationAccessToken(args: {
-  env: Pick<
-    GitHubEnv,
-    "GITHUB_API_BASE_URL" | "GITHUB_APP_ID" | "GITHUB_APP_PRIVATE_KEY"
-  >;
+  env: Pick<GitHubEnv, "GITHUB_API_BASE_URL" | "GITHUB_APP_ID" | "GITHUB_APP_PRIVATE_KEY">;
   installationId: string | number;
   repositories?: string[];
   permissions?: Record<string, "read" | "write">;
@@ -68,9 +65,7 @@ export async function createInstallationAccessToken(args: {
   );
 
   if (!response.ok) {
-    throw new Error(
-      `GitHub installation token request failed with status ${response.status}`,
-    );
+    throw new Error(`GitHub installation token request failed with status ${response.status}`);
   }
 
   const payload = (await response.json()) as {

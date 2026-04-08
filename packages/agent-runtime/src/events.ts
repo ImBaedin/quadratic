@@ -13,9 +13,25 @@ export const runStatusSchema = z.enum([
 
 export type RunStatus = z.infer<typeof runStatusSchema>;
 
-export const runKindSchema = z.enum(["repository_sync", "repository_explore", "agent_tool"]);
+export const workflowKindSchema = z.enum([
+  "context_enrichment",
+  "task_breakdown",
+  "discussion_rereview",
+  "repo_analysis",
+  "repo_execution",
+  "repository_sync",
+  "repository_explore",
+]);
 
-export type RunKind = z.infer<typeof runKindSchema>;
+export type WorkflowKind = z.infer<typeof workflowKindSchema>;
+
+export const toolsetKindSchema = z.enum(["none", "read_only_repository", "writable_repository"]);
+
+export type ToolsetKind = z.infer<typeof toolsetKindSchema>;
+
+export const runTargetTypeSchema = z.enum(["task", "repository"]);
+
+export type RunTargetType = z.infer<typeof runTargetTypeSchema>;
 
 export const runArtifactSchema = z.object({
   kind: z.string(),
@@ -23,164 +39,195 @@ export const runArtifactSchema = z.object({
   label: z.string().optional(),
   contentType: z.string().optional(),
   url: z.string().url().optional(),
-  metadata: z.record(z.string(), z.string()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type RunArtifact = z.infer<typeof runArtifactSchema>;
 
-export const toolCallSchema = z.object({
-  id: z.string(),
-  toolName: z.string(),
-  input: z.record(z.string(), z.unknown()),
-  startedAt: z.string().datetime(),
-});
-
-export type ToolCall = z.infer<typeof toolCallSchema>;
-
-export const toolResultSchema = z.object({
-  callId: z.string(),
-  toolName: z.string(),
-  ok: z.boolean(),
-  output: z.record(z.string(), z.unknown()).optional(),
-  error: z.string().optional(),
-  finishedAt: z.string().datetime(),
-});
-
-export type ToolResult = z.infer<typeof toolResultSchema>;
-
-export const runEventTypeSchema = z.enum([
-  "run.created",
-  "run.preparing",
-  "run.started",
-  "run.progress",
-  "run.stdout",
-  "run.stderr",
-  "run.tool_called",
-  "run.tool_result",
-  "run.artifact",
-  "run.summary",
-  "run.completed",
-  "run.failed",
-  "run.canceled",
-  "run.timeout",
-]);
-
-export type RunEventType = z.infer<typeof runEventTypeSchema>;
-
 export const runEventSchema = z.object({
-  runId: z.string(),
-  type: runEventTypeSchema,
-  timestamp: z.string().datetime(),
+  type: z.string(),
   sequence: z.number().int().nonnegative(),
-  payload: z.record(z.string(), z.unknown()),
+  timestamp: z.number().int().nonnegative(),
+  payload: z.record(z.string(), z.unknown()).default({}),
 });
 
 export type RunEvent = z.infer<typeof runEventSchema>;
 
-export const repositoryExecutionRequestSchema = z.object({
-  runId: z.string(),
-  workspaceId: z.string(),
-  repositoryId: z.string(),
-  githubInstallationId: z.string(),
-  repositoryFullName: z.string(),
-  branch: z.string(),
-  kind: runKindSchema,
-  requestedAt: z.string().datetime(),
-  metadata: z.record(z.string(), z.unknown()).default({}),
+export const runUsageSchema = z.object({
+  provider: z.string(),
+  model: z.string(),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative(),
+  estimatedCostUsd: z.number().nonnegative().optional(),
 });
 
-export type RepositoryExecutionRequest = z.infer<
-  typeof repositoryExecutionRequestSchema
->;
+export type RunUsage = z.infer<typeof runUsageSchema>;
 
-export const repositoryExecutionEventSchema = z.object({
-  type: z.string().min(1),
+export const taskFieldDefinitionSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  description: z.string().optional(),
+  valueKind: z.enum([
+    "text",
+    "markdown",
+    "string_list",
+    "json",
+    "boolean",
+    "number",
+    "suggested_files",
+  ]),
+  visibility: z.enum(["primary", "secondary", "telemetry", "hidden"]),
+  aiBehavior: z.enum(["manual_only", "suggestable", "ai_default"]),
+  promptHint: z.string().optional(),
+  value: z.unknown().optional(),
+});
+
+export type TaskFieldDefinition = z.infer<typeof taskFieldDefinitionSchema>;
+
+export const taskVersionSnapshotSchema = z.object({
+  taskId: z.string(),
+  workspaceId: z.string(),
+  primaryRepositoryId: z.string().nullable().optional(),
+  branch: z.string().optional(),
+  taskKind: z.string(),
+  title: z.string(),
+  status: z.string(),
+  phase: z.string(),
+  parentTaskId: z.string().optional(),
+  latestSummary: z.string().optional(),
+  latestError: z.string().optional(),
+  rawPrompt: z.string().default(""),
+  fieldValues: z.array(taskFieldDefinitionSchema).default([]),
+  contextEntries: z
+    .array(
+      z.object({
+        contextEntryId: z.string().optional(),
+        kind: z.string(),
+        title: z.string().optional(),
+        body: z.string(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+        createdAt: z.number().optional(),
+      }),
+    )
+    .default([]),
+  questions: z
+    .array(
+      z.object({
+        questionId: z.string().optional(),
+        key: z.string(),
+        question: z.string(),
+        status: z.string(),
+        source: z.string(),
+        answer: z.string().optional(),
+        answeredAt: z.number().optional(),
+      }),
+    )
+    .default([]),
+  relations: z
+    .array(
+      z.object({
+        relationId: z.string().optional(),
+        taskId: z.string(),
+        relatedTaskId: z.string(),
+        relationType: z.string(),
+        createdAt: z.number().optional(),
+      }),
+    )
+    .default([]),
+  repository: z
+    .object({
+      repositoryId: z.string(),
+      fullName: z.string(),
+      owner: z.string(),
+      name: z.string(),
+      defaultBranch: z.string(),
+      selected: z.boolean(),
+      archived: z.boolean(),
+      githubInstallationId: z.number(),
+    })
+    .nullable()
+    .optional(),
+});
+
+export type TaskVersionSnapshot = z.infer<typeof taskVersionSnapshotSchema>;
+
+export const proposalItemSchema = z.object({
+  itemType: z.enum([
+    "core_patch",
+    "field_value",
+    "context_entry",
+    "question",
+    "child_task",
+    "relation",
+  ]),
+  action: z.enum(["set", "add", "remove", "create"]),
+  label: z.string().optional(),
+  fieldKey: z.string().optional(),
   payload: z.record(z.string(), z.unknown()),
 });
 
-export type RepositoryExecutionEvent = z.infer<
-  typeof repositoryExecutionEventSchema
->;
+export type ProposalItem = z.infer<typeof proposalItemSchema>;
 
-export const taskPlanningRequestSchema = z.object({
-  taskId: z.string(),
-  runId: z.string(),
-  workspaceId: z.string(),
-  repositoryId: z.string(),
-  githubInstallationId: z.string(),
-  repositoryFullName: z.string(),
-  branch: z.string(),
-  requestedAt: z.string().datetime(),
-  metadata: z.record(z.string(), z.unknown()).default({}),
+export const proposalEnvelopeSchema = z.object({
+  workflowKind: workflowKindSchema,
+  summary: z.string().optional(),
+  rationale: z.string().optional(),
+  items: z.array(proposalItemSchema).default([]),
 });
 
-export type TaskPlanningRequest = z.infer<typeof taskPlanningRequestSchema>;
+export type ProposalEnvelope = z.infer<typeof proposalEnvelopeSchema>;
 
-export const repositoryExecutionResultSchema = z.object({
+export const repositoryContextSchema = z.object({
+  repositoryId: z.string(),
+  fullName: z.string(),
+  owner: z.string(),
+  name: z.string(),
+  defaultBranch: z.string(),
+  selected: z.boolean(),
+  archived: z.boolean(),
+  githubInstallationId: z.number(),
+});
+
+export type RepositoryContext = z.infer<typeof repositoryContextSchema>;
+
+export const runEnvelopeSchema = z.object({
   runId: z.string(),
-  status: runStatusSchema,
-  startedAt: z.string().datetime().optional(),
-  completedAt: z.string().datetime().optional(),
+  workspaceId: z.string(),
+  targetType: runTargetTypeSchema,
+  targetTaskId: z.string().optional(),
+  targetRepositoryId: z.string().optional(),
+  branch: z.string().optional(),
+  runKind: workflowKindSchema,
+  requestedAt: z.string().datetime(),
+  provider: z.string().default("openrouter"),
+  model: z.string().default("openai/gpt-5.4-nano"),
+  promptTemplateVersion: z.string().default("planner-first-v1"),
+  toolsetVersion: z.string().default("planner-first-v1"),
+  effectWorkflowKey: z.string().default("planner-first-v1"),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  task: taskVersionSnapshotSchema.optional(),
+  repository: repositoryContextSchema.optional(),
+});
+
+export type RunEnvelope = z.infer<typeof runEnvelopeSchema>;
+
+export const executionResultSchema = z.object({
+  status: z.enum(["completed", "failed"]),
   summary: z.string().optional(),
   error: z.string().optional(),
+});
+
+export const runResultSchema = z.object({
+  runId: z.string(),
+  status: runStatusSchema,
+  summary: z.string().optional(),
+  error: z.string().optional(),
+  events: z.array(runEventSchema).default([]),
   artifacts: z.array(runArtifactSchema).default([]),
-  events: z.array(repositoryExecutionEventSchema).optional(),
+  usage: runUsageSchema.optional(),
+  proposal: proposalEnvelopeSchema.optional(),
+  execution: executionResultSchema.optional(),
 });
 
-export type RepositoryExecutionResult = z.infer<
-  typeof repositoryExecutionResultSchema
->;
-
-export const taskPlanningDraftSchema = z.object({
-  title: z.string().min(1),
-  normalizedPrompt: z.string().min(1),
-  plan: z.string().min(1),
-  acceptanceCriteria: z.array(z.string().min(1)).min(1),
-  suggestedFiles: z.array(
-    z.object({
-      path: z.string().min(1),
-      reason: z.string().min(1).optional(),
-    }),
-  ),
-});
-
-export type TaskPlanningDraft = z.infer<typeof taskPlanningDraftSchema>;
-
-export const taskPlanningQuestionSchema = z.object({
-  key: z.string().min(1),
-  question: z.string().min(1),
-});
-
-export type TaskPlanningQuestion = z.infer<typeof taskPlanningQuestionSchema>;
-
-export const taskPlanningEventSchema = z.object({
-  type: z.string().min(1),
-  payload: z.record(z.string(), z.unknown()),
-});
-
-export type TaskPlanningEvent = z.infer<typeof taskPlanningEventSchema>;
-
-export const taskPlanningResultSchema = z
-  .object({
-    taskId: z.string(),
-    runId: z.string(),
-    status: runStatusSchema,
-    startedAt: z.string().datetime().optional(),
-    completedAt: z.string().datetime().optional(),
-    draft: taskPlanningDraftSchema.optional(),
-    questions: z.array(taskPlanningQuestionSchema).optional(),
-    summary: z.string().optional(),
-    error: z.string().optional(),
-    events: z.array(taskPlanningEventSchema).optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.status === "succeeded" && !value.draft) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Successful task planning results must include a draft.",
-        path: ["draft"],
-      });
-    }
-  });
-
-export type TaskPlanningResult = z.infer<typeof taskPlanningResultSchema>;
+export type RunResult = z.infer<typeof runResultSchema>;

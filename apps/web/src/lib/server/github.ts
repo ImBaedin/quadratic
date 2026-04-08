@@ -58,6 +58,10 @@ export function verifyWebhookSignature(payload: string, signatureHeader: string 
   });
 }
 
-export function normalizeWebhookEvent(args: { event: string; action: string | null; payload: unknown }) {
+export function normalizeWebhookEvent(args: {
+  event: string;
+  action: string | null;
+  payload: unknown;
+}) {
   return normalizeGitHubWebhookEvent(args);
 }

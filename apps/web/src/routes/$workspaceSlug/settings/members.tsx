@@ -3,7 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { WorkspaceLayout } from "../../../components/workspace-layout";
 import { useJson } from "../../../components/workspace/use-json";
 import { Button } from "@quadratic/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@quadratic/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@quadratic/ui/components/card";
 
 export const Route = createFileRoute("/$workspaceSlug/settings/members" as never)({
   component: WorkspaceMembersPage,
@@ -21,6 +27,7 @@ function WorkspaceMembersPage() {
     <WorkspaceLayout
       workspaceSlug={workspaceSlug}
       workspaceName={workspace.data?.workspace.name}
+      error={workspace.error}
       breadcrumbs={[
         { label: workspaceSlug },
         { label: "Settings", href: `/${workspaceSlug}/settings` },
@@ -60,7 +67,9 @@ function WorkspaceMembersPage() {
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>
               </select>
-              <Button type="submit" size="sm">Send invitation</Button>
+              <Button type="submit" size="sm">
+                Send invitation
+              </Button>
             </form>
           </CardContent>
         </Card>

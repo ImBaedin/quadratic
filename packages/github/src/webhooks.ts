@@ -42,9 +42,7 @@ export function normalizeGitHubWebhookEvent(args: {
     installation: envelope.installation
       ? normalizeGitHubInstallation(envelope.installation)
       : undefined,
-    repository: envelope.repository
-      ? normalizeGitHubRepository(envelope.repository)
-      : undefined,
+    repository: envelope.repository ? normalizeGitHubRepository(envelope.repository) : undefined,
     repositoriesAdded: (envelope.repositories_added ?? []).map((repository) =>
       normalizeGitHubRepository(repository),
     ),

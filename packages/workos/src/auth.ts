@@ -47,10 +47,7 @@ export function createWorkosAuthorizationUrl(args: {
 }
 
 export async function exchangeAuthorizationCode(args: {
-  env: Pick<
-    WorkosEnv,
-    "WORKOS_API_KEY" | "WORKOS_BASE_URL" | "WORKOS_CLIENT_ID"
-  >;
+  env: Pick<WorkosEnv, "WORKOS_API_KEY" | "WORKOS_BASE_URL" | "WORKOS_CLIENT_ID">;
   code: string;
   invitationToken?: string;
   ipAddress?: string;

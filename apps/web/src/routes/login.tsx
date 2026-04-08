@@ -1,7 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getAuth, getSignInUrl, getSignUpUrl } from "@workos/authkit-tanstack-react-start";
 import { Button } from "@quadratic/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@quadratic/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@quadratic/ui/components/card";
 
 export const Route = createFileRoute("/login" as never)({
   loader: async () => {

@@ -25,6 +25,7 @@ function WorkspaceRepositoriesPage() {
     <WorkspaceLayout
       workspaceSlug={workspaceSlug}
       workspaceName={workspace.data?.workspace.name}
+      error={workspace.error}
       breadcrumbs={[
         { label: workspaceSlug },
         { label: "Settings", href: `/${workspaceSlug}/settings` },
@@ -61,12 +62,20 @@ function WorkspaceRepositoriesPage() {
                   <form action="/api/platform/repositories/selection" method="post">
                     <input type="hidden" name="workspaceSlug" value={workspaceSlug} />
                     <input type="hidden" name="repositoryId" value={repository.repositoryId} />
-                    <input type="hidden" name="selected" value={repository.selected ? "false" : "true"} />
+                    <input
+                      type="hidden"
+                      name="selected"
+                      value={repository.selected ? "false" : "true"}
+                    />
                     <Button type="submit" variant="outline" size="sm">
                       {repository.selected ? "Disconnect" : "Select"}
                     </Button>
                   </form>
-                  <form action="/api/platform/repositories/branch" method="post" className="flex gap-2">
+                  <form
+                    action="/api/platform/repositories/branch"
+                    method="post"
+                    className="flex gap-2"
+                  >
                     <input type="hidden" name="workspaceSlug" value={workspaceSlug} />
                     <input type="hidden" name="repositoryId" value={repository.repositoryId} />
                     <input
@@ -74,14 +83,21 @@ function WorkspaceRepositoriesPage() {
                       defaultValue={repository.defaultBranch}
                       className="h-7 rounded-md border border-input bg-input/20 px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
-                    <Button type="submit" size="sm">Save branch</Button>
+                    <Button type="submit" size="sm">
+                      Save branch
+                    </Button>
                   </form>
                   <form action="/api/platform/runs" method="post">
                     <input type="hidden" name="workspaceSlug" value={workspaceSlug} />
                     <input type="hidden" name="repositoryId" value={repository.repositoryId} />
                     <input type="hidden" name="branch" value={repository.defaultBranch} />
                     <input type="hidden" name="kind" value="repository_sync" />
-                    <Button type="submit" variant="outline" size="sm" className="border-emerald-700 text-emerald-400 hover:bg-emerald-500/10">
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="sm"
+                      className="border-emerald-700 text-emerald-400 hover:bg-emerald-500/10"
+                    >
                       Trigger run
                     </Button>
                   </form>

@@ -72,7 +72,10 @@ export async function connectInstallation(args: {
   githubAccountType: string;
   status: "pending" | "active" | "suspended" | "removed";
 }) {
-  return await getConvexClient().mutation(api.githubInstallations.connectWorkspaceInstallation, args as never);
+  return await getConvexClient().mutation(
+    api.githubInstallations.connectWorkspaceInstallation,
+    args as never,
+  );
 }
 
 export async function listRepositories(args: { workosUserId: string; workspaceId: string }) {
@@ -113,7 +116,7 @@ export async function setRepositoryDefaultBranch(args: {
 }
 
 export async function listAgentRuns(args: { workosUserId: string; workspaceId: string }) {
-  return await getConvexClient().query(api.agentRuns.listForWorkspace, args as never);
+  return await getConvexClient().query(api.runs.listForWorkspace, args as never);
 }
 
 export async function requestAgentRun(args: {
@@ -123,24 +126,27 @@ export async function requestAgentRun(args: {
   branch: string;
   kind: string;
 }) {
-  return await getConvexClient().mutation(api.agentRuns.request, args as never);
+  return await getConvexClient().mutation(api.runs.requestRepositoryRun, {
+    workosUserId: args.workosUserId,
+    workspaceId: args.workspaceId,
+    repositoryId: args.repositoryId,
+    branch: args.branch,
+    runKind: args.kind,
+  } as never);
 }
 
 export async function createTask(args: {
   workosUserId: string;
   workspaceId: string;
-  repositoryId: string;
-  branch: string;
+  repositoryId?: string;
+  branch?: string;
   prompt: string;
   title?: string;
 }) {
   return await getConvexClient().mutation(api.tasks.create, args as never);
 }
 
-export async function requestTaskPlanning(args: {
-  workosUserId: string;
-  taskId: string;
-}) {
+export async function requestTaskPlanning(args: { workosUserId: string; taskId: string }) {
   return await getConvexClient().mutation(api.tasks.requestPlanning, args as never);
 }
 
@@ -149,7 +155,7 @@ export async function getTask(args: { workosUserId: string; taskId: string }) {
 }
 
 export async function listTasks(args: { workosUserId: string; workspaceId: string }) {
-  return await getConvexClient().query(api.tasks.listForWorkspace, args as never);
+  return await getConvexClient().query(api.tasks.list, args as never);
 }
 
 export async function answerTaskQuestion(args: {

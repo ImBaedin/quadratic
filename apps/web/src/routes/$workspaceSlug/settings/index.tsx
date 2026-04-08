@@ -35,10 +35,8 @@ function WorkspaceSettingsPage() {
     <WorkspaceLayout
       workspaceSlug={workspaceSlug}
       workspaceName={workspace.data?.workspace.name}
-      breadcrumbs={[
-        { label: workspaceSlug },
-        { label: "Settings" },
-      ]}
+      error={workspace.error}
+      breadcrumbs={[{ label: workspaceSlug }, { label: "Settings" }]}
     >
       <div>
         <h1 className="font-heading text-lg font-semibold">Settings</h1>

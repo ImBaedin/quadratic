@@ -20,9 +20,7 @@ export const normalizedGitHubRepositorySchema = z.object({
   htmlUrl: z.string().url(),
 });
 
-export type NormalizedGitHubRepository = z.infer<
-  typeof normalizedGitHubRepositorySchema
->;
+export type NormalizedGitHubRepository = z.infer<typeof normalizedGitHubRepositorySchema>;
 
 export const normalizedInstallationSchema = z.object({
   id: z.number().int(),

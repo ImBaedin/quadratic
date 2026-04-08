@@ -8,6 +8,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   envDir: "../../",
   plugins: [tsconfigPaths(), tailwindcss(), tanstackStart(), viteReact(), alchemy()],
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
   server: {
     port: 3001,
   },

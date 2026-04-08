@@ -7,10 +7,12 @@ The current web app has basic, unstyled pages for workspace management, settings
 ## Layout Architecture
 
 **Two layout modes:**
+
 - **Bare layout** — `/`, `/login`, `/onboarding`, `/auth/callback` (no sidebar)
 - **Workspace layout** — all `/$workspaceSlug/*` routes get sidebar + topbar
 
 **App shell structure:**
+
 ```
 ┌─────────────────────────────────────────┐
 │ Top Bar (breadcrumbs, user menu)        │
@@ -27,15 +29,18 @@ The current web app has basic, unstyled pages for workspace management, settings
 ## Files to Create
 
 ### Mock Data & Utilities
+
 1. **`apps/web/src/lib/mock-data.ts`** — All mock types and stub data (tasks, repos, workspace, questions)
 2. **`apps/web/src/lib/task-status.ts`** — Status→color/label mapping config
 
 ### Layout Components
+
 3. **`apps/web/src/components/app-sidebar.tsx`** — Left sidebar using shadcn `Sidebar` primitives (`SidebarProvider`, `SidebarMenu`, `SidebarMenuButton`, etc.). Nav items: Tasks, Repositories, Settings. Workspace name in header. Uses Phosphor icons. Links use TanStack `<Link>` via `render` prop on `SidebarMenuButton`.
 4. **`apps/web/src/components/app-topbar.tsx`** — Top bar with `SidebarTrigger`, `Breadcrumb`, user avatar `DropdownMenu` (logout). Height: `h-14`, border-bottom.
 5. **`apps/web/src/components/workspace-layout.tsx`** — Composes `SidebarProvider` + `AppSidebar` + `SidebarInset` > `AppTopbar` + `<main>{children}</main>`. Replaces current `WorkspaceShell`.
 
 ### Task Components
+
 6. **`apps/web/src/components/tasks/task-status-badge.tsx`** — Wraps shadcn `Badge` with status-specific colors:
    - `drafting` → gray
    - `awaiting_clarification` → amber
@@ -52,6 +57,7 @@ The current web app has basic, unstyled pages for workspace management, settings
 9. **`apps/web/src/components/tasks/task-detail-panel.tsx`** — Shows task title, status badge, original prompt, and conditionally: plan, acceptance criteria, suggested files, questions, or "Agent working..." spinner.
 
 ### Route Pages
+
 10. **`apps/web/src/routes/$workspaceSlug/tasks/index.tsx`** — Task list page. Has `useState` with mock tasks. "New Task" button opens creation dialog. Wraps content in `WorkspaceLayout`.
 
 11. **`apps/web/src/routes/$workspaceSlug/tasks/$taskId.tsx`** — Task detail page. Looks up task by ID from mock data. Wraps in `WorkspaceLayout`.
@@ -72,23 +78,23 @@ The current web app has basic, unstyled pages for workspace management, settings
 
 ## Key Reusable Components (from `@quadratic/ui`)
 
-| Component | Import Path | Usage |
-|-----------|------------|-------|
-| Sidebar primitives | `@quadratic/ui/components/sidebar` | App shell sidebar |
-| Badge | `@quadratic/ui/components/badge` | Task status badges |
-| Button | `@quadratic/ui/components/button` | Actions everywhere |
-| Dialog | `@quadratic/ui/components/dialog` | Task creation (desktop) |
-| Drawer | `@quadratic/ui/components/drawer` | Task creation (mobile) |
-| Select | `@quadratic/ui/components/select` | Repo picker in task creation |
-| Textarea | `@quadratic/ui/components/textarea` | Task description input |
-| Card | `@quadratic/ui/components/card` | Task detail sections, settings |
-| Breadcrumb | `@quadratic/ui/components/breadcrumb` | Top bar navigation |
-| Avatar | `@quadratic/ui/components/avatar` | User menu in topbar |
-| DropdownMenu | `@quadratic/ui/components/dropdown-menu` | User menu, workspace switcher |
-| Separator | `@quadratic/ui/components/separator` | Topbar dividers |
-| Skeleton | `@quadratic/ui/components/skeleton` | Loading states |
-| Empty State | `@quadratic/ui/components/empty-state` | No tasks yet |
-| Sonner/Toaster | `@quadratic/ui/components/sonner` | Already in root |
+| Component          | Import Path                              | Usage                          |
+| ------------------ | ---------------------------------------- | ------------------------------ |
+| Sidebar primitives | `@quadratic/ui/components/sidebar`       | App shell sidebar              |
+| Badge              | `@quadratic/ui/components/badge`         | Task status badges             |
+| Button             | `@quadratic/ui/components/button`        | Actions everywhere             |
+| Dialog             | `@quadratic/ui/components/dialog`        | Task creation (desktop)        |
+| Drawer             | `@quadratic/ui/components/drawer`        | Task creation (mobile)         |
+| Select             | `@quadratic/ui/components/select`        | Repo picker in task creation   |
+| Textarea           | `@quadratic/ui/components/textarea`      | Task description input         |
+| Card               | `@quadratic/ui/components/card`          | Task detail sections, settings |
+| Breadcrumb         | `@quadratic/ui/components/breadcrumb`    | Top bar navigation             |
+| Avatar             | `@quadratic/ui/components/avatar`        | User menu in topbar            |
+| DropdownMenu       | `@quadratic/ui/components/dropdown-menu` | User menu, workspace switcher  |
+| Separator          | `@quadratic/ui/components/separator`     | Topbar dividers                |
+| Skeleton           | `@quadratic/ui/components/skeleton`      | Loading states                 |
+| Empty State        | `@quadratic/ui/components/empty-state`   | No tasks yet                   |
+| Sonner/Toaster     | `@quadratic/ui/components/sonner`        | Already in root                |
 
 **Existing hooks:** `useIsMobile()` from `@quadratic/ui/hooks/use-mobile`
 **Existing utils:** `cn()` from `@/lib/utils` (clsx + tailwind-merge)
@@ -106,26 +112,31 @@ The current web app has basic, unstyled pages for workspace management, settings
 ## Implementation Order
 
 ### Phase 1 — Foundation
+
 1. `mock-data.ts` + `task-status.ts`
 2. `task-status-badge.tsx`
 
 ### Phase 2 — App Shell
+
 3. `app-sidebar.tsx`
 4. `app-topbar.tsx`
 5. `workspace-layout.tsx`
 6. Modify `__root.tsx` — remove old Header
 
 ### Phase 3 — Task Pages
+
 7. `task-list.tsx` + `task-creation-dialog.tsx`
 8. `routes/$workspaceSlug/tasks/index.tsx` (task list route)
 9. `task-detail-panel.tsx`
 10. `routes/$workspaceSlug/tasks/$taskId.tsx` (task detail route)
 
 ### Phase 4 — Migration
+
 11. `$workspaceSlug/index.tsx` → redirect to tasks
 12. All settings pages → swap `WorkspaceShell` for `WorkspaceLayout`
 
 ### Phase 5 — Polish
+
 13. Clean up `login.tsx` and `onboarding.tsx` styling
 14. Delete old `header.tsx` and `workspace/shell.tsx`
 

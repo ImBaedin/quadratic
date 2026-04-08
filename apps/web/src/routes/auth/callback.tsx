@@ -3,7 +3,7 @@ import { handleCallbackRoute } from "@workos/authkit-tanstack-react-start";
 
 import { syncCurrentUser } from "../../lib/server/convex";
 
-export const Route = createFileRoute("/api/auth/callback" as never)({
+export const Route = createFileRoute("/auth/callback" as never)({
   server: {
     handlers: {
       GET: handleCallbackRoute({
