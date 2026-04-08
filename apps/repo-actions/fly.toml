@@ -7,6 +7,7 @@ app = 'quadratic'
 primary_region = 'iad'
 
 [build]
+dockerfile = "apps/repo-actions/Dockerfile"
 
 [http_service]
 internal_port = 8080

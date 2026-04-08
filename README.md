@@ -107,6 +107,8 @@ Use separate Convex cloud deployments for dev and prod.
 Deploy `apps/repo-actions` to Fly as the external repository action service. Convex scheduled actions
 call this service directly and apply the returned result back into Convex state. Set `SERVICE_TOKEN`
 on the Fly app and the same value as `REPO_ACTIONS_TOKEN` in Convex.
+Run the deploy from the repository root so Fly sends the monorepo as the Docker build context:
+`fly deploy . --config apps/repo-actions/fly.toml`
 
 ## Git Hooks and Formatting
 
