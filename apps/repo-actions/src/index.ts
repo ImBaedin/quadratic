@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage } from "node:http";
 
 import { openRouterText } from "@tanstack/ai-openrouter";
-import { executeRunEnvelope, runEnvelopeSchema, runResultSchema } from "@quadratic/agent-runtime";
+import { executeRunEnvelope, runEnvelopeSchema, runResultSchema } from "./agent-runtime";
 
 const port = Number(process.env.PORT ?? "8080");
 const serviceToken = process.env.SERVICE_TOKEN;
